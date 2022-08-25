@@ -18,6 +18,9 @@ yarn
 APP_HOST="http://localhost:10001"
 APP_PREFIX="wx_bot"
 
+STORAGE_ADAPTER=local
+STORAGE_PATH="../public/"
+
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_PASSWORD=
