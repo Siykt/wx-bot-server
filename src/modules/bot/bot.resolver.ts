@@ -1,12 +1,30 @@
-import { Mutation } from 'type-graphql';
+import { Arg, Mutation, Query } from 'type-graphql';
 import { Service } from 'typedi';
-import Bot from './bot.class';
+import { BotContactInfo, BotModel, BotRoomInfo } from '../../models/bot';
+import { BotService } from './bot.service';
 
 @Service()
 export class BotResolver {
-  @Mutation(() => String, { description: '创建机器人' })
-  async createBot() {
-    const bot = new Bot();
-    return await bot.asyncGetScanQrcode();
+  constructor(private botService: BotService) {}
+
+  @Mutation(() => BotModel, { description: '创建机器人' })
+  createBot() {
+    return this.botService.createBot();
+  }
+
+  @Query(() => [BotContactInfo], { description: '机器人的联系人信息' })
+  async botContacts(@Arg('id') id: string) {
+    const bot = this.botService.getBot(id);
+    if (!bot) return [];
+    await bot.waitingReady();
+    return bot.ctx.contactInfoList;
+  }
+
+  @Query(() => [BotRoomInfo], { description: '机器人的所有群信息' })
+  async botRooms(@Arg('id') id: string) {
+    const bot = this.botService.getBot(id);
+    if (!bot) return [];
+    await bot.waitingReady();
+    return bot.ctx.roomInfoList;
   }
 }

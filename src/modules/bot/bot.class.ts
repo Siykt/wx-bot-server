@@ -1,14 +1,31 @@
 import fs from 'fs';
+import { curry, first, map } from 'lodash';
 import path from 'path';
 import QRCode from 'qrcode';
 import { ScanStatus, WechatyBuilder } from 'wechaty';
-import { ContactSelfInterface, WechatyInterface } from 'wechaty/impls';
+import { ContactInterface, ContactSelfInterface, RoomInterface, WechatyInterface } from 'wechaty/impls';
 import { wait } from '../../common/async';
 import logger from '../../common/logger';
-import { STORAGE_PATH } from '../../config';
+import { APP_HOST, STORAGE_PATH } from '../../config';
+import { BotContactInfo, BotRoomInfo } from '../../models/bot';
 
 export interface BotContext {
+  /** 扫码QRCord */
   scanQrcode: string;
+  /** User实例 */
+  botUser: ContactSelfInterface;
+  /** 机器人用户的信息 */
+  botUserinfo: BotContactInfo;
+  /** 文件中转站 */
+  fileHelper: ContactInterface;
+  /** 联系人列表 */
+  contactList: ContactInterface[];
+  /** 联系人信息列表 */
+  contactInfoList: BotContactInfo[];
+  /** 群列表 */
+  roomList: RoomInterface[];
+  /** 群信息列表 */
+  roomInfoList: BotRoomInfo[];
 }
 
 export enum BotStatus {
@@ -28,7 +45,6 @@ export default class Bot {
   bot: WechatyInterface;
   botStatus: BotStatus = 0;
   ctx: BotContext = {} as BotContext;
-  user?: ContactSelfInterface;
 
   /**
    * @param name 机器人ID, 会作为缓存保留
@@ -47,11 +63,38 @@ export default class Bot {
     }
   }
 
+  static async getContactInfo(contact: ContactInterface): Promise<BotContactInfo> {
+    const instance = new BotContactInfo();
+    instance.name = contact.name();
+    instance.id = contact.id;
+    instance.phone = first(await contact.phone()) ?? '';
+    return instance;
+  }
+
+  static async getRoomInfo(contactSelf: ContactSelfInterface, room: RoomInterface): Promise<BotRoomInfo> {
+    const instance = new BotRoomInfo();
+    instance.id = room.id;
+    instance.topic = await room.topic();
+    instance.alias = (await room.alias(contactSelf)) ?? contactSelf.name();
+    instance.announce = await room.announce();
+    instance.member = await Promise.all(map(await room.memberAll(), Bot.getContactInfo));
+    instance.id;
+    return instance;
+  }
+
+  get id() {
+    return this.bot.id;
+  }
+  get isReady() {
+    return this.botStatus === BotStatus.Ready;
+  }
+
   async start() {
     this.bot.on('scan', this.handleScan.bind(this));
     this.bot.on('login', this.handleLogin.bind(this));
     this.bot.on('ready', this.handleReady.bind(this));
     await this.bot.start();
+    botMap.set(this.bot.id, this);
   }
 
   private async handleScan(qrcode: string, status: ScanStatus) {
@@ -61,17 +104,23 @@ export default class Bot {
       const key = (this.bot.id || `qrcode-${Date.now()}`) + '.png';
       await QRCode.toFile(path.resolve(STORAGE_PATH, key), qrcode);
       // ? 需要考虑是否写入数据库
-      this.ctx.scanQrcode = `/files/static/${key}`;
+      this.ctx.scanQrcode = `${APP_HOST}/files/static/${key}`;
       this.botStatus = BotStatus.WaitingScan;
+      logger.info(`bot-${this.bot.id} 登录二维码链接: ${this.ctx.scanQrcode}`);
     }
   }
   private async handleLogin(user: ContactSelfInterface) {
-    this.user = user;
+    this.ctx.botUser = user;
+    this.ctx.botUserinfo = await Bot.getContactInfo(this.ctx.botUser);
     logger.info(`bot-${this.bot.id} 已有用户加入: ${user.name()}`);
   }
   private async handleReady() {
+    this.ctx.fileHelper = (await this.bot.Contact.find({ name: '文件传输助手' })) as ContactInterface;
+    this.ctx.contactList = await this.bot.Contact.findAll();
+    this.ctx.contactInfoList = await Promise.all(map(this.ctx.contactList, Bot.getContactInfo));
+    this.ctx.roomList = await this.bot.Room.findAll();
+    this.ctx.roomInfoList = await Promise.all(map(this.ctx.roomList, curry(Bot.getRoomInfo)(this.ctx.botUser)));
     logger.info(`bot-${this.bot.id} 已经准备就绪!`);
-    botMap.set(this.bot.id, this);
     this.botStatus = BotStatus.Ready;
   }
 
@@ -80,12 +129,20 @@ export default class Bot {
       return this.ctx.scanQrcode;
     }
     // 可能存在 bot 登录缓存
-    if (this.botStatus === BotStatus.Ready) {
+    if (this.isReady) {
       logger.info(`改 bot-${this.bot.id} 已在Ready状态!`);
       return this.ctx.scanQrcode ?? '';
     }
 
     await wait(300);
     return this.asyncGetScanQrcode();
+  }
+
+  async waitingReady() {
+    if (this.isReady) {
+      return;
+    }
+    await wait(1000);
+    await this.waitingReady();
   }
 }
