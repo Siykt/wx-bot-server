@@ -40,3 +40,6 @@ pnpm-lock.yaml
 .env.test
 
 public/static/
+
+# bot登录缓存
+*.memory-card.json
