@@ -1,13 +1,20 @@
 import fs from 'fs';
 import { curry, first, map } from 'lodash';
+import { nanoid } from 'nanoid';
 import path from 'path';
 import QRCode from 'qrcode';
-import { ScanStatus, WechatyBuilder } from 'wechaty';
-import { ContactInterface, ContactSelfInterface, RoomInterface, WechatyInterface } from 'wechaty/impls';
+import { ScanStatus, WechatyBuilder, Message } from 'wechaty';
+import {
+  ContactInterface,
+  ContactSelfInterface,
+  MessageInterface,
+  RoomInterface,
+  WechatyInterface,
+} from 'wechaty/impls';
 import { wait } from '../../common/async';
 import logger from '../../common/logger';
 import { APP_HOST, STORAGE_PATH } from '../../config';
-import { BotContactInfo, BotRoomInfo } from '../../models/bot';
+import { BotContactInfo, BotMessageInfo, BotRoomInfo } from '../../models/bot';
 
 export interface BotContext {
   /** 扫码QRCord */
@@ -40,11 +47,18 @@ export enum BotStatus {
 }
 
 export const botMap = new Map<string, Bot>();
+export type BotMessageType = ReturnType<Message['type']>;
+
+export interface BotMessageHandlerAdapter {
+  // 默认处理器
+  (messageInfo: BotMessageInfo): Promise<unknown>;
+}
 
 export default class Bot {
   bot: WechatyInterface;
   botStatus: BotStatus = 0;
   ctx: BotContext = {} as BotContext;
+  messageHandlerAdapters: Map<BotMessageType, BotMessageHandlerAdapter[]> = new Map();
 
   /**
    * @param name 机器人ID, 会作为缓存保留
@@ -82,6 +96,16 @@ export default class Bot {
     return instance;
   }
 
+  static async formatMessage(message: MessageInterface): Promise<BotMessageInfo> {
+    const instance = new BotMessageInfo();
+    instance.id = nanoid();
+    instance.date = message.date();
+    instance.content = (message.toSayable() as unknown as string) ?? '';
+    const from = message.from();
+    instance.form = from ? await Bot.getContactInfo(from) : null;
+    return instance;
+  }
+
   get id() {
     return this.bot.id;
   }
@@ -93,6 +117,7 @@ export default class Bot {
     this.bot.on('scan', this.handleScan.bind(this));
     this.bot.on('login', this.handleLogin.bind(this));
     this.bot.on('ready', this.handleReady.bind(this));
+    this.bot.on('message', this.handleMessage.bind(this));
     await this.bot.start();
     botMap.set(this.bot.id, this);
   }
@@ -123,6 +148,23 @@ export default class Bot {
     logger.info(`bot-${this.bot.id} 已经准备就绪!`);
     this.botStatus = BotStatus.Ready;
   }
+  private async handleMessage(message: MessageInterface) {
+    // TODO 自己发送的消息
+    if (message.self()) {
+      return;
+    }
+    const type = message.type();
+    if (!this.messageHandlerAdapters.has(type)) {
+      return;
+    }
+    for (const handler of this.messageHandlerAdapters.get(type) as BotMessageHandlerAdapter[]) {
+      try {
+        await handler(await Bot.formatMessage(message));
+      } catch (error) {
+        logger.error(`bot-${this.bot.id} [${type}]: ${error}`);
+      }
+    }
+  }
 
   async asyncGetScanQrcode(): Promise<string> {
     if (this.botStatus === BotStatus.WaitingScan) {
@@ -130,7 +172,7 @@ export default class Bot {
     }
     // 可能存在 bot 登录缓存
     if (this.isReady) {
-      logger.info(`改 bot-${this.bot.id} 已在Ready状态!`);
+      logger.info(`该bot [bot-${this.bot.id}] 已在Ready状态!`);
       return this.ctx.scanQrcode ?? '';
     }
 
