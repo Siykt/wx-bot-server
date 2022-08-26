@@ -38,3 +38,18 @@ export class BotRoomInfo {
   @Field(() => [BotContactInfo], { description: '群成员' })
   member!: BotContactInfo[];
 }
+
+@ObjectType({ description: '机器人消息模型' })
+export class BotMessageInfo {
+  @Field({ description: '消息id' })
+  id!: string;
+
+  @Field(() => BotContactInfo, { description: '消息来源', nullable: true })
+  form?: BotContactInfo | null;
+
+  @Field({ description: '消息内容' })
+  content!: string;
+
+  @Field({ description: '消息发送时间' })
+  date!: Date;
+}
