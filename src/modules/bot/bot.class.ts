@@ -1,9 +1,10 @@
 import fs from 'fs';
-import { curry, first, map } from 'lodash';
+import { curry, map } from 'lodash';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import QRCode from 'qrcode';
-import { ScanStatus, WechatyBuilder, Message } from 'wechaty';
+import { Message, ScanStatus, WechatyBuilder } from 'wechaty';
+import { types as PuppetTypes } from 'wechaty-puppet';
 import {
   ContactInterface,
   ContactSelfInterface,
@@ -77,12 +78,30 @@ export default class Bot {
     }
   }
 
+  static getContactGender(gender: PuppetTypes.ContactGender) {
+    return ['未知', '男', '女'][gender];
+  }
+
+  static getContactType(type: PuppetTypes.Contact) {
+    return ['未知', '个人', '公众号', '组织/企业(企业微信)'][type];
+  }
+
   static async getContactInfo(contact: ContactInterface): Promise<BotContactInfo> {
-    const instance = new BotContactInfo();
-    instance.name = contact.name();
-    instance.id = contact.id;
-    instance.phone = first(await contact.phone()) ?? '';
-    return instance;
+    const province = contact.province() ?? '';
+    const city = contact.city() ?? '';
+    const address = province + city;
+    return {
+      name: contact.name(),
+      id: contact.id,
+      gender: Bot.getContactGender(contact.gender()),
+      alias: await contact.alias(),
+      isFriend: contact.friend() ?? false,
+      star: contact.star(),
+      type: Bot.getContactType(contact.type()),
+      province,
+      city,
+      address,
+    };
   }
 
   static async getRoomInfo(contactSelf: ContactSelfInterface, room: RoomInterface): Promise<BotRoomInfo> {

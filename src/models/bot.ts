@@ -17,8 +17,29 @@ export class BotContactInfo {
   @Field({ description: '联系人名称' })
   name!: string;
 
-  @Field({ description: '联系人手机号' })
-  phone?: string;
+  @Field({ description: '性别' })
+  gender!: string;
+
+  @Field({ description: '别名(备注)', nullable: true })
+  alias?: string;
+
+  @Field({ description: '是否为好友' })
+  isFriend!: boolean;
+
+  @Field({ description: '是否为常用联系人', nullable: true })
+  star?: boolean;
+
+  @Field({ description: '个人/公众号' })
+  type!: string;
+
+  @Field({ description: '省' })
+  province!: string;
+
+  @Field({ description: '市' })
+  city!: string;
+
+  @Field({ description: '地址' })
+  address!: string;
 }
 
 @ObjectType({ description: '机器人群信息' })
