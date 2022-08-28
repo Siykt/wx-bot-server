@@ -79,11 +79,11 @@ export default class Bot {
   }
 
   static getContactGender(gender: PuppetTypes.ContactGender) {
-    return ['未知', '男', '女'][gender];
+    return ['未知', '男', '女'][gender] ?? '未知';
   }
 
   static getContactType(type: PuppetTypes.Contact) {
-    return ['未知', '个人', '公众号', '组织/企业(企业微信)'][type];
+    return ['未知', '个人', '公众号', '组织/企业(企业微信)'][type] ?? '未知';
   }
 
   static async getContactInfo(contact: ContactInterface): Promise<BotContactInfo> {
