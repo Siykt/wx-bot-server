@@ -23,6 +23,13 @@ export class BotResolver {
     };
   }
 
+  @FieldResolver(() => Number, { description: '获取机器人状态' })
+  botStatus(@Root() root: BotModel) {
+    const bot = this.botService.getBot(root.id);
+    if (!bot) return 0;
+    return bot.botStatus;
+  }
+
   @FieldResolver(() => [BotContactInfo], { description: '机器人的联系人信息' })
   async botContacts(@Root() root: BotModel): Promise<BotContactInfo[]> {
     const bot = this.botService.getBot(root.id);
