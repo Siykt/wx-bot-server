@@ -1,6 +1,6 @@
+import { BotContactGender, BotContactType } from '@prisma/client';
 import fs from 'fs';
 import { curry, map } from 'lodash';
-import { nanoid } from 'nanoid';
 import path from 'path';
 import QRCode from 'qrcode';
 import { Message, ScanStatus, WechatyBuilder } from 'wechaty';
@@ -10,12 +10,24 @@ import {
   ContactSelfInterface,
   MessageInterface,
   RoomInterface,
-  WechatyInterface,
+  WechatyInterface
 } from 'wechaty/impls';
 import { wait } from '../../common/async';
 import logger from '../../common/logger';
 import { APP_HOST, STORAGE_PATH } from '../../config';
-import { BotContactInfo, BotMessageInfo, BotRoomInfo } from '../../models/bot';
+import { BotContact, BotMessage, BotRoom } from '../../models/bot';
+
+type OmitModel<M, K extends string = ''> = Omit<M, ('createdAt' | 'updatedAt') | K>;
+
+export type BotContactInfo = OmitModel<BotContact, 'botId'>;
+
+export interface BotRoomInfo extends OmitModel<BotRoom> {
+  member: BotContactInfo[];
+}
+
+export interface BotMessageInfo extends OmitModel<BotMessage> {
+  form?: BotContactInfo;
+}
 
 export interface BotContext {
   /** 扫码QRCord */
@@ -25,15 +37,15 @@ export interface BotContext {
   /** 机器人用户的信息 */
   botUserinfo: BotContactInfo;
   /** 文件中转站 */
-  fileHelper: ContactInterface;
-  /** 联系人列表 */
-  contactList: ContactInterface[];
-  /** 联系人信息列表 */
-  contactInfoList: BotContactInfo[];
-  /** 群列表 */
-  roomList: RoomInterface[];
-  /** 群信息列表 */
-  roomInfoList: BotRoomInfo[];
+  fileHelper?: ContactInterface;
+  // /** 联系人列表 */
+  // contactList: ContactInterface[];
+  // /** 联系人信息列表 */
+  // contactInfoList: BotContactInfo[];
+  // /** 群列表 */
+  // roomList: RoomInterface[];
+  // /** 群信息列表 */
+  // roomInfoList: BotRoomInfo[];
 }
 
 export enum BotStatus {
@@ -47,7 +59,8 @@ export enum BotStatus {
   Stopped,
 }
 
-export const botMap = new Map<string, Bot>();
+// TODO 实例缓存
+const botMap = new Map<string, Bot>();
 export type BotMessageType = ReturnType<Message['type']>;
 
 export interface BotMessageHandlerAdapter {
@@ -78,12 +91,20 @@ export default class Bot {
     }
   }
 
-  static getContactGender(gender: PuppetTypes.ContactGender) {
-    return ['未知', '男', '女'][gender] ?? '未知';
+  static getBot(id: string) {
+    return botMap.get(id);
   }
 
-  static getContactType(type: PuppetTypes.Contact) {
-    return ['未知', '个人', '公众号', '组织/企业(企业微信)'][type] ?? '未知';
+  static setBot(id: string, bot: Bot) {
+    return botMap.set(id, bot);
+  }
+
+  static getContactGender(gender: PuppetTypes.ContactGender): BotContactGender {
+    return (['Unknown', 'Male', 'Female'] as BotContactGender[])[gender] ?? BotContactGender.Unknown;
+  }
+
+  static getContactType(type: PuppetTypes.Contact): BotContactType {
+    return (['Unknown', 'Individual', 'Official', 'Corporation'] as BotContactType[])[type] ?? BotContactType.Unknown;
   }
 
   static async getContactInfo(contact: ContactInterface): Promise<BotContactInfo> {
@@ -95,34 +116,31 @@ export default class Bot {
       id: contact.id,
       gender: Bot.getContactGender(contact.gender()),
       alias: await contact.alias(),
-      isFriend: contact.friend() ?? false,
-      star: contact.star(),
       type: Bot.getContactType(contact.type()),
-      province,
-      city,
       address,
     };
   }
 
   static async getRoomInfo(contactSelf: ContactSelfInterface, room: RoomInterface): Promise<BotRoomInfo> {
-    const instance = new BotRoomInfo();
-    instance.id = room.id;
-    instance.topic = await room.topic();
-    instance.alias = (await room.alias(contactSelf)) ?? contactSelf.name();
-    instance.announce = await room.announce();
-    instance.member = await Promise.all(map(await room.memberAll(), Bot.getContactInfo));
-    instance.id;
-    return instance;
+    return {
+      id: room.id,
+      topic: await room.topic(),
+      alias: (await room.alias(contactSelf)) ?? contactSelf.name(),
+      announce: await room.announce(),
+      member: await Promise.all(map(await room.memberAll(), Bot.getContactInfo)),
+    };
   }
 
   static async formatMessage(message: MessageInterface): Promise<BotMessageInfo> {
-    const instance = new BotMessageInfo();
-    instance.id = nanoid();
-    instance.date = message.date();
-    instance.content = (message.toSayable() as unknown as string) ?? '';
-    const from = message.from();
-    instance.form = from ? await Bot.getContactInfo(from) : null;
-    return instance;
+    const _from = message.from();
+    const form = _from ? await Bot.getContactInfo(_from) : undefined;
+    return {
+      id: message.id,
+      date: message.date(),
+      content: (message.toSayable() as unknown as string) ?? '',
+      form,
+      botContactId: form?.id,
+    };
   }
 
   get id() {
@@ -138,7 +156,6 @@ export default class Bot {
     this.bot.on('ready', this.handleReady.bind(this));
     this.bot.on('message', this.handleMessage.bind(this));
     await this.bot.start();
-    botMap.set(this.bot.id, this);
   }
 
   private async handleScan(qrcode: string, status: ScanStatus) {
@@ -159,11 +176,7 @@ export default class Bot {
     logger.info(`bot-${this.bot.id} 已有用户加入: ${user.name()}`);
   }
   private async handleReady() {
-    this.ctx.fileHelper = (await this.bot.Contact.find({ name: '文件传输助手' })) as ContactInterface;
-    this.ctx.contactList = await this.bot.Contact.findAll();
-    this.ctx.contactInfoList = await Promise.all(map(this.ctx.contactList, Bot.getContactInfo));
-    this.ctx.roomList = await this.bot.Room.findAll();
-    this.ctx.roomInfoList = await Promise.all(map(this.ctx.roomList, curry(Bot.getRoomInfo)(this.ctx.botUser)));
+    this.ctx.fileHelper = await this.bot.Contact.find({ name: '文件传输助手' });
     logger.info(`bot-${this.bot.id} 已经准备就绪!`);
     this.botStatus = BotStatus.Ready;
   }
@@ -205,5 +218,15 @@ export default class Bot {
     }
     await wait(1000);
     await this.waitingReady();
+  }
+
+  async getAllContact() {
+    const contactList = await this.bot.Contact.findAll();
+    return Promise.all(map(contactList, Bot.getContactInfo));
+  }
+
+  async getAllRoom() {
+    const roomList = await this.bot.Room.findAll();
+    return Promise.all(map(roomList, curry(Bot.getRoomInfo)(this.ctx.botUser)));
   }
 }
