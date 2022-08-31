@@ -24,6 +24,7 @@ model User {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   userRoles UserRole[]
+  Bot       Bot[]
 }
 
 enum UserRoleType {
@@ -38,3 +39,83 @@ model UserRole {
   userId String @db.VarChar(40)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model Bot {
+  id         String  @id @db.VarChar(40)
+  name       String  @db.VarChar(255)
+  scanQrcode String? @db.VarChar(255)
+
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  userId     String       @db.VarChar(40)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  BotContact BotContact[]
+  BotRoom    BotRoom[]
+}
+
+// ! --- 本地化存储的必要性模型 ---
+enum BotContactGender {
+  Unknown
+  Male
+  Female
+}
+
+enum BotContactType {
+  Unknown
+  Individual
+  Official
+  Corporation
+}
+
+model BotContact {
+  id      String           @id @db.VarChar(40)
+  name    String           @db.VarChar(255)
+  alias   String?          @db.VarChar(255)
+  address String?          @db.VarChar(255)
+  gender  BotContactGender
+  type    BotContactType
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  bot           Bot             @relation(fields: [botId], references: [id])
+  botId         String          @db.VarChar(40)
+  BotMessage    BotMessage[]
+  BotRoomMember BotRoomMember[]
+}
+
+model BotRoom {
+  id       String  @id @db.VarChar(40)
+  topic    String  @db.VarChar(255)
+  announce String? @db.VarChar(255)
+  alias    String? @db.VarChar(255)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  bot           Bot             @relation(fields: [botId], references: [id])
+  botId         String          @db.VarChar(40)
+  BotRoomMember BotRoomMember[]
+}
+
+model BotRoomMember {
+  botContactid String     @db.VarChar(40)
+  category     BotContact @relation(fields: [botContactid], references: [id], onDelete: Cascade)
+  botRoomId    String     @db.VarChar(40)
+  recording    BotRoom    @relation(fields: [botRoomId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@id([botContactid, botRoomId])
+}
+
+model BotMessage {
+  id      String    @id @db.VarChar(40)
+  // ! 保存Content具有侵犯隐私的风险, 需要斟酌保留
+  content String?   @db.Text
+  date    DateTime?
+
+  createdAt    DateTime    @default(now())
+  form         BotContact? @relation(fields: [botContactId], references: [id])
+  botContactId String?     @db.VarChar(40)
+}
+
+// ! --- ---
