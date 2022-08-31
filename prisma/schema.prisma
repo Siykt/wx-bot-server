@@ -45,12 +45,13 @@ model Bot {
   name       String  @db.VarChar(255)
   scanQrcode String? @db.VarChar(255)
 
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  userId     String       @db.VarChar(40)
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  BotContact BotContact[]
-  BotRoom    BotRoom[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  userId          String            @db.VarChar(40)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  BotContact      BotContact[]
+  BotRoom         BotRoom[]
+  AutoReplyConfig AutoReplyConfig[]
 }
 
 // ! --- 本地化存储的必要性模型 ---
@@ -119,3 +120,49 @@ model BotMessage {
 }
 
 // ! --- ---
+
+enum TriggerType {
+  Auto
+  Event
+}
+
+enum TriggerRate {
+  Once
+  Always
+  Custom
+}
+
+enum TriggerPeriod {
+  Day
+  Week
+  Month
+  Year
+}
+
+model AutoReplyConfig {
+  id            String         @id @db.VarChar(40)
+  name          String         @db.VarChar(40)
+  content       String         @db.Text
+  description   String?        @db.VarChar(255)
+  priority      Int            @default(0)
+  triggerType   TriggerType    @default(Auto)
+  triggerRate   TriggerRate    @default(Always)
+  triggerPeriod TriggerPeriod?
+  triggerExpr   Json?
+  triggerTimes  Int            @default(0)
+
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  botId               String                @db.VarChar(40)
+  bot                 Bot                   @relation(fields: [botId], references: [id])
+  AutoReplyTriggerLog AutoReplyTriggerLog[]
+}
+
+model AutoReplyTriggerLog {
+  id String @id() @db.VarChar(40)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  autoReplyConfigId String          @db.VarChar(40)
+  autoStartConfig   AutoReplyConfig @relation(fields: [autoReplyConfigId], references: [id])
+}
