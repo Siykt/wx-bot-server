@@ -1,48 +1,44 @@
 import { Arg, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
 import { Service } from 'typedi';
-import { BotContactInfo, BotModel, BotRoomInfo } from '../../models/bot';
+import prisma from '../../common/prisma';
+import { Bot, BotContact, BotRoom } from '../../models/bot';
 import { BotService } from './bot.service';
 
 @Service()
-@Resolver(BotModel)
+@Resolver(Bot)
 export class BotResolver {
   constructor(private botService: BotService) {}
 
-  @Mutation(() => BotModel, { description: '创建机器人' })
-  createBot(@Arg('botId') botId?: string) {
-    return this.botService.createBot(botId);
+  @Mutation(() => Bot, { description: '创建机器人' })
+  createBot(@Arg('botId') botId: string) {
+    return this.botService.createBotByLocal(botId);
   }
 
-  @Query(() => BotModel, { description: '获取机器人', nullable: true })
+  @Query(() => Bot, { description: '获取机器人', nullable: true })
   async bot(@Arg('id') id: string) {
-    const bot = this.botService.getBot(id);
-    if (!bot) return null;
-    return {
-      id: bot.id,
-      scanQrcode: await bot.asyncGetScanQrcode(),
-    };
+    return prisma.bot.findUnique({ where: { id } });
   }
 
   @FieldResolver(() => Number, { description: '获取机器人状态' })
-  botStatus(@Root() root: BotModel) {
-    const bot = this.botService.getBot(root.id);
+  botStatus(@Root() root: Bot) {
+    const bot = this.botService.getBotByLocal(root.id);
     if (!bot) return 0;
     return bot.botStatus;
   }
 
-  @FieldResolver(() => [BotContactInfo], { description: '机器人的联系人信息' })
-  async botContacts(@Root() root: BotModel): Promise<BotContactInfo[]> {
-    const bot = this.botService.getBot(root.id);
-    if (!bot) return [];
-    await bot.waitingReady();
-    return bot.ctx.contactInfoList;
+  @FieldResolver(() => [BotContact], { description: '机器人的联系人信息' })
+  async botContacts(@Root() root: Bot, @Arg('refresh', { nullable: true }) refresh = false): Promise<BotContact[]> {
+    const res = await prisma.botContact.findMany({ where: { bot: root } });
+    if (res.length) return res;
+    if (!refresh) return [];
+    return this.botService.getBotContacts(root.id);
   }
 
-  @FieldResolver(() => [BotRoomInfo], { description: '机器人的所有群信息' })
-  async botRooms(@Root() root: BotModel): Promise<BotRoomInfo[]> {
-    const bot = this.botService.getBot(root.id);
-    if (!bot) return [];
-    await bot.waitingReady();
-    return bot.ctx.roomInfoList;
+  @FieldResolver(() => [BotRoom], { description: '机器人的所有群信息' })
+  async botRooms(@Root() root: Bot, @Arg('refresh', { nullable: true }) refresh = false): Promise<BotRoom[]> {
+    const res = await prisma.botRoom.findMany({ where: { bot: root } });
+    if (res.length) return res;
+    if (!refresh) return [];
+    return this.botService.getBotRooms(root.id);
   }
 }
