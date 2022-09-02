@@ -27,7 +27,10 @@ export class BotResolver {
   }
 
   @FieldResolver(() => [BotContact], { description: '机器人的联系人信息' })
-  async botContacts(@Root() root: Bot, @Arg('refresh', { nullable: true }) refresh = false): Promise<BotContact[]> {
+  async botContacts(
+    @Root() root: Bot,
+    @Arg('refresh', { nullable: true }) refresh: boolean = false
+  ): Promise<BotContact[]> {
     const res = await prisma.botContact.findMany({ where: { bot: root } });
     if (res.length) return res;
     if (!refresh) return [];
@@ -35,7 +38,7 @@ export class BotResolver {
   }
 
   @FieldResolver(() => [BotRoom], { description: '机器人的所有群信息' })
-  async botRooms(@Root() root: Bot, @Arg('refresh', { nullable: true }) refresh = false): Promise<BotRoom[]> {
+  async botRooms(@Root() root: Bot, @Arg('refresh', { nullable: true }) refresh: boolean = false): Promise<BotRoom[]> {
     const res = await prisma.botRoom.findMany({ where: { bot: root } });
     if (res.length) return res;
     if (!refresh) return [];
