@@ -11,7 +11,6 @@ export class BotService {
     const newBot = await prisma.bot.create({
       data: {
         id: nanoid(),
-        name: bot.ctx.botUserinfo.name,
         scanQrcode: await bot.asyncGetScanQrcode(),
         userId: (await prisma.user.findFirst({ where: { username: 'admin' } }))!.id,
       },

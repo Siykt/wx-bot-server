@@ -3,14 +3,14 @@ import fs from 'fs';
 import { curry, map } from 'lodash';
 import path from 'path';
 import QRCode from 'qrcode';
-import { Message, ScanStatus, WechatyBuilder } from 'wechaty';
+import { ScanStatus, WechatyBuilder } from 'wechaty';
 import { types as PuppetTypes } from 'wechaty-puppet';
 import {
   ContactInterface,
   ContactSelfInterface,
   MessageInterface,
   RoomInterface,
-  WechatyInterface
+  WechatyInterface,
 } from 'wechaty/impls';
 import { wait } from '../../common/async';
 import logger from '../../common/logger';
@@ -61,18 +61,23 @@ export enum BotStatus {
 
 // TODO 实例缓存
 const botMap = new Map<string, Bot>();
-export type BotMessageType = ReturnType<Message['type']>;
+export const BotMessageType = PuppetTypes.Message;
 
 export interface BotMessageHandlerAdapter {
   // 默认处理器
-  (messageInfo: BotMessageInfo): Promise<unknown>;
+  (this: Bot, messageInfo: BotMessageInfo, messageInstance: MessageInterface, type: PuppetTypes.Message): unknown;
 }
+
+export type MessageHandlerAdapters = Map<
+  string,
+  [PuppetTypes.Message[] | PuppetTypes.Message, BotMessageHandlerAdapter]
+>;
 
 export default class Bot {
   bot: WechatyInterface;
   botStatus: BotStatus = 0;
   ctx: BotContext = {} as BotContext;
-  messageHandlerAdapters: Map<BotMessageType, BotMessageHandlerAdapter[]> = new Map();
+  messageHandlerAdapters: MessageHandlerAdapters = new Map();
 
   /**
    * @param name 机器人ID, 会作为缓存保留
@@ -181,17 +186,16 @@ export default class Bot {
     this.botStatus = BotStatus.Ready;
   }
   private async handleMessage(message: MessageInterface) {
-    // TODO 自己发送的消息
+    // ? 跳过自己发送的消息
     if (message.self()) {
       return;
     }
     const type = message.type();
-    if (!this.messageHandlerAdapters.has(type)) {
-      return;
-    }
-    for (const handler of this.messageHandlerAdapters.get(type) as BotMessageHandlerAdapter[]) {
+    for (let [id, [types, handler]] of this.messageHandlerAdapters) {
+      if ((Array.isArray(types) && types.every((t) => t !== type)) || types !== type) continue;
       try {
-        await handler(await Bot.formatMessage(message));
+        await handler.call(this, await Bot.formatMessage(message), message, type);
+        logger.info(`bot-${this.bot.id}: task-${id} success`);
       } catch (error) {
         logger.error(`bot-${this.bot.id} [${type}]: ${error}`);
       }
@@ -228,5 +232,14 @@ export default class Bot {
   async getAllRoom() {
     const roomList = await this.bot.Room.findAll();
     return Promise.all(map(roomList, curry(Bot.getRoomInfo)(this.ctx.botUser)));
+  }
+
+  addMessageHandler(
+    handleId: string,
+    typeOrTypes: PuppetTypes.Message[] | PuppetTypes.Message,
+    handle: BotMessageHandlerAdapter
+  ) {
+    // TODO 可以额外封装一下, 比如将保存消息模块放在这里
+    return this.messageHandlerAdapters.set(handleId, [typeOrTypes, handle]);
   }
 }
