@@ -133,10 +133,11 @@ enum TriggerRate {
 }
 
 enum TriggerPeriod {
+  Minute
+  Hour
   Day
   Week
   Month
-  Year
 }
 
 model AutoReplyConfig {
@@ -148,7 +149,7 @@ model AutoReplyConfig {
   triggerType   TriggerType    @default(Auto)
   triggerRate   TriggerRate    @default(Always)
   triggerPeriod TriggerPeriod?
-  triggerExpr   Json?
+  triggerExpr   Json
   triggerTimes  Int            @default(0)
 
   createdAt           DateTime              @default(now())
