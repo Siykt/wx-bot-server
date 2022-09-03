@@ -10,6 +10,16 @@
 yarn
 ```
 
+win64 版本:
+
+下载 chromium
+
+> 已锁定 chromium 版本, 可自行寻找相关镜像
+
+https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/982053/chrome-win.zip
+
+解压 zip 文件至 chrome 目录, 保证 `./chrome/chrome.exe` 为可执行程序
+
 2. 创建 .env
 
 默认配置参考:
