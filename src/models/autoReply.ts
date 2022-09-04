@@ -1,5 +1,6 @@
 import { ObjectType, Field, registerEnumType } from 'type-graphql';
 import { TriggerPeriod, TriggerRate, TriggerType } from 'prisma/prisma-client';
+import GraphQLJSON from 'graphql-type-json';
 
 registerEnumType(TriggerType, {
   name: 'TriggerType',
@@ -53,6 +54,9 @@ export class AutoReplyConfig {
 
   @Field(() => TriggerRate, { description: '触发频率' })
   triggerRate!: TriggerRate;
+
+  @Field(() => GraphQLJSON, { description: '表达式' })
+  triggerExpr!: any;
 
   @Field(() => TriggerPeriod, { description: '触发周期', nullable: true })
   triggerPeriod?: TriggerPeriod | null;
