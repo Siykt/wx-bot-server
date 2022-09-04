@@ -1,4 +1,5 @@
 import { TriggerType, TriggerRate, TriggerPeriod } from '@prisma/client';
+import GraphQLJSON from 'graphql-type-json';
 import { nanoid } from 'nanoid';
 import { Arg, Field, FieldResolver, InputType, Mutation, Query, Resolver, Root } from 'type-graphql';
 import { Service } from 'typedi';
@@ -32,8 +33,8 @@ class AutoReplyConfigInput {
   @Field(() => TriggerPeriod, { nullable: true })
   triggerPeriod?: TriggerPeriod | null;
 
-  @Field()
-  triggerExpr!: string;
+  @Field(() => GraphQLJSON)
+  triggerExpr!: any;
 
   @Field()
   botId!: string;
@@ -64,7 +65,7 @@ export class AutoReplyResolver {
   async saveAutoStartConfig(
     @Arg('input', () => AutoReplyConfigInput) input: AutoReplyConfigInput
   ): Promise<AutoReplyConfig> {
-    const bot = prisma.bot.findUnique({ where: { id: input.botId } });
+    const bot = await prisma.bot.findUnique({ where: { id: input.botId } });
     if (!bot) throw new Error('机器人不存在!');
     const config = await prisma.autoReplyConfig.upsert({
       where: { id: input.id ?? '' },

@@ -1,12 +1,12 @@
 import { AutoReplyConfig, TriggerPeriod, TriggerRate } from '@prisma/client';
-import { Service } from 'typedi';
-import logger from '../../common/logger';
-import jsonLogic from '../../common/regexExpr';
-import { BotMessageType } from '../bot/bot.class';
-import { BotService } from '../bot/bot.service';
-import prisma from '../../common/prisma';
+import jsonLogic from 'json-logic-js';
 import { nanoid } from 'nanoid';
 import Schedule from 'node-schedule';
+import { Service } from 'typedi';
+import logger from '../../common/logger';
+import prisma from '../../common/prisma';
+import { BotMessageType } from '../bot/bot.class';
+import { BotService } from '../bot/bot.service';
 
 @Service()
 export class AutoReplyService {
@@ -25,17 +25,32 @@ export class AutoReplyService {
     const bot = this.validatedBot(config.botId);
 
     bot.addMessageHandler(config.id, [BotMessageType.Text, BotMessageType.Url], async (msg, messageInstance) => {
-      if (!jsonLogic.apply(config.triggerExpr as any, msg.content)) return;
+      /**
+       * @example
+       *
+       * triggerExpr = {
+       *  and: [
+       *    { '==': [{ var: 'form.name' }, 'AntPro'] },
+       *    { '==': [{ var: 'content' }, '测试消息'] }]
+       * }
+       *
+       * 匹配模式参考
+       * @see https://jsonlogic.com/
+       */
+      if (!jsonLogic.apply(config.triggerExpr as any, msg)) return;
       try {
         const recallMsg = await messageInstance.say(config.content);
         try {
           // ! 保存触发消息, 尽量仅作为日志留存
+          const contact = await prisma.botContact.findUnique({ where: { id: msg.botContactId } });
+          // 未保存至数据库的联系人信息
+          if (!contact) return;
           await prisma.botMessage.create({
             data: {
               id: nanoid(),
               content: msg.content,
               date: msg.date,
-              botContactId: msg.botContactId,
+              botContactId: contact.id,
             },
           });
           // ! 保存发送消息, 尽量仅作为日志留存
