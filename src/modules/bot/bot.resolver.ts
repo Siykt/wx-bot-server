@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid';
 import { Arg, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
 import { Service } from 'typedi';
 import prisma from '../../common/prisma';
@@ -9,13 +10,33 @@ import { BotService } from './bot.service';
 export class BotResolver {
   constructor(private botService: BotService) {}
 
-  @Mutation(() => Bot, { description: '创建机器人' })
-  createBot(@Arg('botId') botId: string) {
-    return this.botService.createBotByLocal(botId);
+  @Mutation(() => Bot, { description: '启动/创建机器人' })
+  async startBot(@Arg('id', { nullable: true }) id?: string, @Arg('name', { nullable: true }) name?: string) {
+    let bot: Bot | null = null;
+    if (id) {
+      bot = await this.bot(id);
+    }
+    if (!bot) {
+      bot = await prisma.bot.create({
+        data: {
+          id: nanoid(),
+          userId: (await prisma.user.findFirst({ where: { username: 'admin' } }))!.id,
+        },
+      });
+    }
+    const botInstance = await this.botService.createBotByLocal(bot.id, name);
+    bot.scanQrcode = await botInstance.asyncGetScanQrcode();
+    botInstance.onReady = () => {
+      prisma.bot.update({
+        where: { id: bot!.id },
+        data: { ...bot, name: botInstance.ctx.botUserinfo.name },
+      });
+    };
+    return bot;
   }
 
   @Query(() => Bot, { description: '获取机器人', nullable: true })
-  async bot(@Arg('id') id: string) {
+  bot(@Arg('id') id: string) {
     return prisma.bot.findUnique({ where: { id } });
   }
 
