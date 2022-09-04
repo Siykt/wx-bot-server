@@ -74,11 +74,12 @@ export type MessageHandlerAdapters = Map<
 >;
 
 export default class Bot {
+  name: string;
   bot: WechatyInterface;
   botStatus: BotStatus = 0;
   ctx: BotContext = {} as BotContext;
   messageHandlerAdapters: MessageHandlerAdapters = new Map();
-
+  onReady: () => unknown = () => {};
   /**
    * @param name 机器人ID, 会作为缓存保留
    * @param manual 手动启动机器人
@@ -91,6 +92,7 @@ export default class Bot {
       },
       puppet: 'wechaty-puppet-wechat',
     });
+    this.name = name;
     if (!manual) {
       this.start();
     }
@@ -184,6 +186,7 @@ export default class Bot {
     this.ctx.fileHelper = await this.bot.Contact.find({ name: '文件传输助手' });
     logger.info(`bot-${this.bot.id} 已经准备就绪!`);
     this.botStatus = BotStatus.Ready;
+    this.onReady();
   }
   private async handleMessage(message: MessageInterface) {
     // ? 跳过自己发送的消息
