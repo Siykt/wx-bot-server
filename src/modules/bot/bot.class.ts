@@ -139,13 +139,12 @@ export default class Bot {
   }
 
   static async formatMessage(message: MessageInterface): Promise<BotMessageInfo> {
-    const _from = message.from();
-    const form = _from ? await Bot.getContactInfo(_from) : undefined;
+    const form = await Bot.getContactInfo(message.talker());
     return {
       id: message.id,
       date: message.date(),
-      content: (message.toSayable() as unknown as string) ?? '',
-      form,
+      content: ((await message.toSayable()) as unknown as string) ?? '',
+      form: await Bot.getContactInfo(message.talker()),
       botContactId: form?.id,
     };
   }
@@ -194,8 +193,11 @@ export default class Bot {
       return;
     }
     const type = message.type();
+    console.log('message ->', await Bot.formatMessage(message));
     for (let [id, [types, handler]] of this.messageHandlerAdapters) {
-      if ((Array.isArray(types) && types.every((t) => t !== type)) || types !== type) continue;
+      types = Array.isArray(types) ? types : [types];
+      console.log(types, type, !types.includes(type));
+      if (!types.includes(type)) continue;
       try {
         await handler.call(this, await Bot.formatMessage(message), message, type);
         logger.info(`bot-${this.bot.id}: task-${id} success`);

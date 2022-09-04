@@ -42,7 +42,7 @@ model UserRole {
 
 model Bot {
   id         String  @id @db.VarChar(40)
-  name       String?  @db.VarChar(255)
+  name       String? @db.VarChar(255)
   scanQrcode String? @db.VarChar(255)
 
   createdAt       DateTime          @default(now())
@@ -69,7 +69,7 @@ enum BotContactType {
 }
 
 model BotContact {
-  id      String           @id @db.VarChar(40)
+  id      String           @id @db.VarChar(255)
   name    String           @db.VarChar(255)
   alias   String?          @db.VarChar(255)
   address String?          @db.VarChar(255)
@@ -85,7 +85,7 @@ model BotContact {
 }
 
 model BotRoom {
-  id       String  @id @db.VarChar(40)
+  id       String  @id @db.VarChar(255)
   topic    String  @db.VarChar(255)
   announce String? @db.VarChar(255)
   alias    String? @db.VarChar(255)
@@ -98,10 +98,10 @@ model BotRoom {
 }
 
 model BotRoomMember {
-  botContactid String     @db.VarChar(40)
-  category     BotContact @relation(fields: [botContactid], references: [id], onDelete: Cascade)
-  botRoomId    String     @db.VarChar(40)
-  recording    BotRoom    @relation(fields: [botRoomId], references: [id], onDelete: Cascade)
+  botContactid String     @db.VarChar(255)
+  contact      BotContact @relation(fields: [botContactid], references: [id], onDelete: Cascade)
+  botRoomId    String     @db.VarChar(255)
+  botRoom      BotRoom    @relation(fields: [botRoomId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -116,7 +116,7 @@ model BotMessage {
 
   createdAt    DateTime    @default(now())
   form         BotContact? @relation(fields: [botContactId], references: [id])
-  botContactId String?     @db.VarChar(40)
+  botContactId String?     @db.VarChar(255)
 }
 
 // ! --- ---
