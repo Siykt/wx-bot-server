@@ -16,12 +16,11 @@ import { wait } from '../../common/async';
 import logger from '../../common/logger';
 import { APP_HOST, STORAGE_PATH } from '../../config';
 import { BotContact, BotMessage, BotRoom } from '../../models/bot';
-
-type OmitModel<M, K extends string = ''> = Omit<M, ('createdAt' | 'updatedAt') | K>;
+import { OmitModel } from '../../types/utils.t';
 
 export type BotContactInfo = OmitModel<BotContact, 'botId'>;
 
-export interface BotRoomInfo extends OmitModel<BotRoom> {
+export interface BotRoomInfo extends OmitModel<BotRoom, 'botId'> {
   member: BotContactInfo[];
 }
 

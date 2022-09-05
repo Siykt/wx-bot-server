@@ -92,6 +92,9 @@ export class BotRoom {
 
   @Field({ description: '更新时间' })
   updatedAt!: Date;
+
+  @Field({ description: '机器人实例id' })
+  botId!: string;
 }
 
 @ObjectType({ description: '机器人消息模型' })

@@ -52,6 +52,8 @@ model Bot {
   BotContact      BotContact[]
   BotRoom         BotRoom[]
   AutoReplyConfig AutoReplyConfig[]
+  BotsOnContacts  BotsOnContacts[]
+  BotsOnRooms     BotsOnRooms[]
 }
 
 // ! --- 本地化存储的必要性模型 ---
@@ -76,12 +78,24 @@ model BotContact {
   gender  BotContactGender
   type    BotContactType
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  bot           Bot             @relation(fields: [botId], references: [id])
-  botId         String          @db.VarChar(40)
-  BotMessage    BotMessage[]
-  BotRoomMember BotRoomMember[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  bot            Bot              @relation(fields: [botId], references: [id])
+  botId          String           @db.VarChar(40)
+  BotMessage     BotMessage[]
+  BotRoomMember  BotRoomMember[]
+  BotsOnContacts BotsOnContacts[]
+}
+
+model BotsOnContacts {
+  botContactid String     @db.VarChar(255)
+  contact      BotContact @relation(fields: [botContactid], references: [id], onDelete: Cascade)
+  botId        String     @db.VarChar(255)
+  bot          Bot        @relation(fields: [botId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@id([botContactid, botId])
 }
 
 model BotRoom {
@@ -95,6 +109,18 @@ model BotRoom {
   bot           Bot             @relation(fields: [botId], references: [id])
   botId         String          @db.VarChar(40)
   BotRoomMember BotRoomMember[]
+  BotsOnRooms   BotsOnRooms[]
+}
+
+model BotsOnRooms {
+  botRoomId String   @db.VarChar(255)
+  botRoom   BotRoom  @relation(fields: [botRoomId], references: [id], onDelete: Cascade)
+  botId     String   @db.VarChar(255)
+  bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([botRoomId, botId])
 }
 
 model BotRoomMember {

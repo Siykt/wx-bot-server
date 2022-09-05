@@ -1,6 +1,8 @@
+import { BotsOnContacts, BotsOnRooms } from '@prisma/client';
 import { Service } from 'typedi';
 import prisma from '../../common/prisma';
 import { BotContact, BotRoom } from '../../models/bot';
+import { OmitModel } from '../../types/utils.t';
 import Bot, { BotStatus } from './bot.class';
 
 @Service()
@@ -19,32 +21,81 @@ export class BotService {
   async getBotContacts(botId: string): Promise<BotContact[]> {
     const bot = this.getBotByLocal(botId);
     if (!bot || bot.botStatus !== BotStatus.Ready) return [];
+
     const contactList = await bot.getAllContact();
-    return Promise.all(contactList.map(async (contact) => prisma.botContact.create({ data: { ...contact, botId } })));
+
+    const botContacts: OmitModel<BotContact>[] = [];
+    const botsOnContacts: OmitModel<BotsOnContacts>[] = [];
+
+    for (const contact of contactList) {
+      botContacts.push({ ...contact, botId });
+      botsOnContacts.push({ botId, botContactid: contact.id });
+    }
+
+    await prisma.botContact.createMany({
+      data: botContacts,
+      skipDuplicates: true,
+    });
+    await prisma.botsOnContacts.createMany({
+      data: botsOnContacts,
+      skipDuplicates: true,
+    });
+    return prisma.botContact.findMany({
+      where: {
+        bot: {
+          BotsOnContacts: {
+            some: { bot: { id: botId } },
+          },
+        },
+      },
+    });
   }
 
   async getBotRooms(botId: string): Promise<BotRoom[]> {
     const bot = this.getBotByLocal(botId);
     if (!bot || bot.botStatus !== BotStatus.Ready) return [];
+
     const roomList = await bot.getAllRoom();
-    const res: BotRoom[] = [];
-    for (const { id: roomId, topic, announce, alias, member } of roomList) {
-      res.push(
-        await prisma.botRoom.create({
-          data: {
-            id: roomId,
-            topic,
-            announce,
-            alias,
-            botId,
-          },
-        })
-      );
-      await prisma.botContact.createMany({
-        data: member.map((contact) => ({ ...contact, botId })),
-        skipDuplicates: true,
-      });
+
+    const botRooms: OmitModel<BotRoom>[] = [];
+    const botContacts: OmitModel<BotContact>[] = [];
+    const botsOnContacts: OmitModel<BotsOnContacts>[] = [];
+    const botsOnRooms: OmitModel<BotsOnRooms>[] = [];
+
+    for (const { id: botRoomId, topic, announce, alias, member } of roomList) {
+      botRooms.push({ id: botRoomId, botId, topic, announce, alias });
+      botsOnRooms.push({ botId, botRoomId });
+      for (const contact of member) {
+        botContacts.push({ ...contact, botId });
+        botsOnContacts.push({ botId, botContactid: contact.id });
+      }
     }
-    return res;
+
+    await prisma.botRoom.createMany({
+      data: botRooms,
+      skipDuplicates: true,
+    });
+    await prisma.botContact.createMany({
+      data: botContacts,
+      skipDuplicates: true,
+    });
+    await prisma.botsOnRooms.createMany({
+      data: botsOnRooms,
+      skipDuplicates: true,
+    });
+    await prisma.botsOnContacts.createMany({
+      data: botsOnContacts,
+      skipDuplicates: true,
+    });
+
+    return prisma.botRoom.findMany({
+      where: {
+        bot: {
+          BotsOnContacts: {
+            some: { bot: { id: botId } },
+          },
+        },
+      },
+    });
   }
 }
