@@ -40,7 +40,10 @@ export class BotService {
           },
         })
       );
-      await Promise.all(member.map(async (contact) => prisma.botContact.create({ data: { ...contact, botId } })));
+      await prisma.botContact.createMany({
+        data: member.map((contact) => ({ ...contact, botId })),
+        skipDuplicates: true,
+      });
     }
     return res;
   }
