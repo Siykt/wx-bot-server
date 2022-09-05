@@ -41,26 +41,17 @@ export class AutoReplyService {
       try {
         const recallMsg = await messageInstance.say(config.content);
         try {
-          // ! 保存触发消息, 尽量仅作为日志留存
           const contact = await prisma.botContact.findUnique({ where: { id: msg.botContactId } });
-          // 未保存至数据库的联系人信息
+          // 跳过未保存至数据库的联系人信息
           if (!contact) return;
-          await prisma.botMessage.create({
-            data: {
-              id: nanoid(),
-              content: msg.content,
-              date: msg.date,
-              botContactId: contact.id,
-            },
-          });
-          // ! 保存发送消息, 尽量仅作为日志留存
-          await prisma.botMessage.create({
-            data: {
-              id: nanoid(),
-              content: config.content,
-              date: new Date(),
-              botContactId: bot.ctx.botUserinfo.id,
-            },
+          await prisma.botMessage.createMany({
+            data: [
+              // ! 保存触发消息, 尽量仅作为日志留存
+              { id: nanoid(), content: msg.content, date: msg.date, botContactId: contact.id },
+              // ! 保存发送消息, 尽量仅作为日志留存
+              { id: nanoid(), content: config.content, date: new Date(), botContactId: bot.ctx.botUserinfo.id },
+            ],
+            skipDuplicates: true,
           });
         } catch (error) {
           logger.error(`[saving message error]: ${error}`);
