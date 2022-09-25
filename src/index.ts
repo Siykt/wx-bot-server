@@ -10,7 +10,7 @@ import koaStatic from 'koa-static';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import 'reflect-metadata';
-import { buildSchema } from 'type-graphql';
+import { buildSchema, ForbiddenError, UnauthorizedError } from 'type-graphql';
 import Container from 'typedi';
 import { authChecker } from './common/authChecker';
 import { graphqlContext, koaContext } from './common/context';
@@ -18,8 +18,14 @@ import logger from './common/logger';
 import prisma from './common/prisma';
 import { APP_PORT, FILE_UPLOAD_SIZE } from './config';
 import resolvers from './modules';
+import { Prisma } from '@prisma/client';
+import { NotfoundError } from './common/errors';
+import { ErrorInterceptor } from './common/error.interceptor';
 
 const app = new koa({ proxy: true });
+app.on('error', (err) => {
+  console.error(err);
+});
 
 async function checkInitAdminAccount() {
   const adminRole = await prisma.userRole.findFirst({ where: { type: UserRoleType.SystemAdmin } });
@@ -54,7 +60,7 @@ async function bootstrap() {
     introspection: true,
     context: graphqlContext,
     schema: await buildSchema({
-      globalMiddlewares: [],
+      globalMiddlewares: [ErrorInterceptor],
       scalarsMap: [
         {
           type: () => GraphQLJSON,
@@ -65,7 +71,33 @@ async function bootstrap() {
       container: Container,
       authChecker,
     }),
-    plugins: [ApolloServerPluginLandingPageLocalDefault()],
+    plugins: [
+      ApolloServerPluginLandingPageLocalDefault(),
+      {
+        async requestDidStart() {
+          return {
+            async willSendResponse({ context }) {
+              Container.reset(context.requestId);
+            },
+            async didEncounterErrors({ response, errors }) {
+              logger.error(errors);
+              const error = errors[0].originalError;
+              if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+                response!.http!.status = 401;
+              } else if (error instanceof NotfoundError) {
+                response!.http!.status = 404;
+              } else if (error!.name === 'PayloadTooLargeError') {
+                response!.http!.status = 413;
+                errors[0].message = error!.message = '文件大小超出限制!';
+              } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                errors[0].message = error!.message = 'Database error!';
+                delete error.meta;
+              }
+            },
+          };
+        },
+      },
+    ],
   });
 
   await server.start();
