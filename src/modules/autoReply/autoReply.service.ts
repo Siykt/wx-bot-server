@@ -71,6 +71,10 @@ export class AutoReplyService {
       } catch (error) {
         logger.error(`[reply message error]: ${error}`);
       }
+
+      if (config.triggerRate === TriggerRate.Once) {
+        this.removeKeywordsReply(config);
+      }
     });
   }
 
@@ -153,6 +157,10 @@ export class AutoReplyService {
           logger.error(`[cron-job-${config.id}]: ${error}`);
           // ? 发生错误终止任务
           Schedule.cancelJob(jobName);
+        }
+
+        if (config.triggerRate === TriggerRate.Once) {
+          this.removeCronJob(config);
         }
       }
     );
