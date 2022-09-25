@@ -3,6 +3,7 @@ import GraphQLJSON from 'graphql-type-json';
 import { nanoid } from 'nanoid';
 import { Arg, Field, FieldResolver, InputType, Mutation, Query, Resolver, Root } from 'type-graphql';
 import { Service } from 'typedi';
+import { NotfoundError } from '../../common/errors';
 import prisma from '../../common/prisma';
 import { AutoReplyConfig, AutoReplyTriggerLog } from '../../models/autoReply';
 import { AutoReplyService } from './autoReply.service';
@@ -56,7 +57,7 @@ export class AutoReplyResolver {
   @Mutation(() => Boolean)
   async removeAutoConfig(@Arg('id') id: string) {
     const config = await prisma.autoReplyConfig.findFirst({ where: { id } });
-    if (!config) throw new Error('自动化配置不存在');
+    if (!config) throw new NotfoundError('自动化配置不存在');
 
     // 定时任务
     if (config.triggerType === TriggerType.Auto) {
@@ -77,7 +78,7 @@ export class AutoReplyResolver {
     @Arg('input', () => AutoReplyConfigInput) input: AutoReplyConfigInput
   ): Promise<AutoReplyConfig> {
     const bot = await prisma.bot.findUnique({ where: { id: input.botId } });
-    if (!bot) throw new Error('机器人不存在!');
+    if (!bot) throw new NotfoundError('机器人不存在!');
     const config = await prisma.autoReplyConfig.upsert({
       where: { id: input.id ?? '' },
       create: { ...input, id: nanoid() },
@@ -86,7 +87,7 @@ export class AutoReplyResolver {
 
     // 定时任务
     if (config.triggerType === TriggerType.Auto) {
-      this.autoReplyService.createCronJob(config);
+      await this.autoReplyService.createCronJob(config);
     }
 
     // 自动回复

@@ -3,6 +3,7 @@ import jsonLogic from 'json-logic-js';
 import { nanoid } from 'nanoid';
 import Schedule from 'node-schedule';
 import { Service } from 'typedi';
+import { NotfoundError } from '../../common/errors';
 import logger from '../../common/logger';
 import prisma from '../../common/prisma';
 import { BotMessageType } from '../bot/bot.class';
@@ -20,8 +21,8 @@ export class AutoReplyService {
   private validatedBot(botId: string) {
     const bot = this.botService.getBotByLocal(botId);
 
-    if (!bot) throw new Error('机器人已失效或不存在!');
-    if (!bot.isReady) throw new Error('机器人未准备就绪!');
+    if (!bot) throw new NotfoundError('机器人已失效或不存在!');
+    if (!bot.isReady) throw new NotfoundError('机器人未准备就绪!');
 
     return bot;
   }
@@ -127,8 +128,8 @@ export class AutoReplyService {
     const jobName = this.createJobName(config);
     const replayContact = await bot.bot.Contact.find(config.triggerExpr as any); // {name: string | RegExp} / {alias: string | RegExp}
 
-    if (!replayContact) throw new Error('无法获取执行自动任务的对象!');
-    if (!config.triggerPeriod) throw new Error('无法获取执行自动任务的触发周期!');
+    if (!replayContact) throw new NotfoundError('无法获取执行自动任务的对象!');
+    if (!config.triggerPeriod) throw new NotfoundError('无法获取执行自动任务的触发周期!');
 
     Schedule.scheduleJob(
       jobName,
@@ -150,13 +151,12 @@ export class AutoReplyService {
               id: nanoid(),
               content: config.content,
               date: new Date(),
-              botContactId: bot.ctx.botUserinfo.id,
             },
           });
         } catch (error) {
           logger.error(`[cron-job-${config.id}]: ${error}`);
           // ? 发生错误终止任务
-          Schedule.cancelJob(jobName);
+          this.removeCronJob(config);
         }
 
         if (config.triggerRate === TriggerRate.Once) {
