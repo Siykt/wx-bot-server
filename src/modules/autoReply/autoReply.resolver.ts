@@ -54,9 +54,18 @@ export class AutoReplyResolver {
   @Mutation(() => Boolean)
   async removeAutoConfig(@Arg('id') id: string) {
     const config = await prisma.autoReplyConfig.findFirst({ where: { id } });
-    if (!config) {
-      throw new Error('自动化配置不存在');
+    if (!config) throw new Error('自动化配置不存在');
+
+    // 定时任务
+    if (config.triggerType === TriggerType.Auto) {
+      this.autoReplyService.removeCronJob(config);
     }
+
+    // 自动回复
+    if (config.triggerType === TriggerType.Event) {
+      this.autoReplyService.removeKeywordsReply(config);
+    }
+
     await prisma.autoReplyConfig.delete({ where: { id } });
     return true;
   }
@@ -73,12 +82,12 @@ export class AutoReplyResolver {
       update: { ...input },
     });
 
-    // TODO 定时任务
+    // 定时任务
     if (config.triggerType === TriggerType.Auto) {
       this.autoReplyService.createCronJob(config);
     }
 
-    // TODO 自动回复
+    // 自动回复
     if (config.triggerType === TriggerType.Event) {
       this.autoReplyService.createKeywordsReply(config);
     }
