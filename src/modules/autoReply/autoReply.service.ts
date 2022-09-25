@@ -123,9 +123,8 @@ export class AutoReplyService {
     const jobName = this.createJobName(config);
     const replayContact = await bot.bot.Contact.find(config.triggerExpr as any); // {name: string | RegExp} / {alias: string | RegExp}
 
-    // ? 可能是无效逻辑
-    if (!config.triggerPeriod) return;
     if (!replayContact) throw new Error('无法获取执行自动任务的对象!');
+    if (!config.triggerPeriod) throw new Error('无法获取执行自动任务的触发周期!');
 
     Schedule.scheduleJob(
       jobName,

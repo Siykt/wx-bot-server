@@ -12,28 +12,30 @@ class AutoReplyConfigInput {
   @Field({ nullable: true })
   id?: string;
 
-  @Field()
+  @Field({ description: '自动化脚本名称' })
   name!: string;
 
-  @Field()
+  @Field({ description: '自动回复内容' })
   content!: string;
 
-  @Field(() => String, { nullable: true })
+  @Field(() => String, { nullable: true, description: '自动化脚本描述' })
   description?: string;
 
-  @Field()
+  @Field({ description: '优先级' })
   priority!: number;
 
-  @Field(() => TriggerType)
+  @Field(() => TriggerType, { description: '触发类型' })
   triggerType!: TriggerType;
 
-  @Field(() => TriggerRate)
+  @Field(() => TriggerRate, { description: '触发频率' })
   triggerRate!: TriggerRate;
 
-  @Field(() => TriggerPeriod, { nullable: true })
+  @Field(() => TriggerPeriod, { nullable: true, description: '触发周期' })
   triggerPeriod?: TriggerPeriod | null;
 
-  @Field(() => GraphQLJSON)
+  @Field(() => GraphQLJSON, {
+    description: '表达式, Auto为{name: string | RegExp} / {alias: string | RegExp}; Event为 "JSONLogic"',
+  })
   triggerExpr!: any;
 
   @Field()
