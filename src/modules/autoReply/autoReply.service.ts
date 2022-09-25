@@ -12,7 +12,12 @@ import { BotService } from '../bot/bot.service';
 export class AutoReplyService {
   constructor(private botService: BotService) {}
 
-  validatedBot(botId: string) {
+  /**
+   * 验证机器人
+   * @param botId 机器人id
+   * @returns
+   */
+  private validatedBot(botId: string) {
     const bot = this.botService.getBotByLocal(botId);
 
     if (!bot) throw new Error('机器人已失效或不存在!');
@@ -21,6 +26,11 @@ export class AutoReplyService {
     return bot;
   }
 
+  /**
+   * 创建触发形自执行任务
+   * @param config 自执行任务配置
+   * @returns
+   */
   createKeywordsReply(config: AutoReplyConfig) {
     const bot = this.validatedBot(config.botId);
 
@@ -64,8 +74,14 @@ export class AutoReplyService {
     });
   }
 
-  private createJobName(config: AutoReplyConfig) {
-    return `${config.name}-${config.botId}-${config.id}`;
+  /**
+   * 删除触发形自执行任务
+   * @param config 自执行任务配置
+   * @returns
+   */
+  removeKeywordsReply(config: AutoReplyConfig) {
+    const bot = this.validatedBot(config.botId);
+    bot.messageHandlerAdapters.delete(config.id);
   }
 
   /**
@@ -88,10 +104,24 @@ export class AutoReplyService {
     return ScheduleTriggerPeriodMap[triggerPeriod];
   }
 
+  /**
+   * 创建定时自执行任务名称
+   * @param config 自执行任务配置
+   * @returns
+   */
+  private createJobName(config: AutoReplyConfig) {
+    return `${config.name}-${config.botId}-${config.id}`;
+  }
+
+  /**
+   * 创建定时自执行任务
+   * @param config 自执行任务配置
+   * @returns
+   */
   async createCronJob(config: AutoReplyConfig) {
     const bot = this.validatedBot(config.botId);
     const jobName = this.createJobName(config);
-    const replayContact = await bot.bot.Contact.find(config.triggerExpr as any);
+    const replayContact = await bot.bot.Contact.find(config.triggerExpr as any); // {name: string | RegExp} / {alias: string | RegExp}
 
     // ? 可能是无效逻辑
     if (!config.triggerPeriod) return;
@@ -127,5 +157,15 @@ export class AutoReplyService {
         }
       }
     );
+  }
+
+  /**
+   * 删除定时自执行任务
+   * @param config 自执行任务配置
+   * @returns
+   */
+  removeCronJob(config: AutoReplyConfig) {
+    const jobName = this.createJobName(config);
+    Schedule.cancelJob(jobName);
   }
 }
