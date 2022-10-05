@@ -31,7 +31,7 @@ export async function koaContext(ctx: ExtendableContext & KoaContextType, next: 
   const requestId = nanoid();
   const container = Container.of(requestId);
 
-  const token = ctx.request.headers.authorization;
+  const token = ctx.request.headers.authorization ?? (ctx.request.query.imeanToken as string);
   let user: UserWithRoles | null | undefined;
 
   if (token) {

@@ -1,7 +1,7 @@
 import { TriggerType, TriggerRate, TriggerPeriod } from '@prisma/client';
 import GraphQLJSON from 'graphql-type-json';
 import { nanoid } from 'nanoid';
-import { Arg, Field, FieldResolver, InputType, Mutation, Query, Resolver, Root } from 'type-graphql';
+import { Arg, Authorized, Field, FieldResolver, InputType, Mutation, Query, Resolver, Root } from 'type-graphql';
 import { Service } from 'typedi';
 import { NotfoundError } from '../../common/errors';
 import prisma from '../../common/prisma';
@@ -48,12 +48,14 @@ class AutoReplyConfigInput {
 export class AutoReplyResolver {
   constructor(private autoReplyService: AutoReplyService) {}
 
+  @Authorized()
   @Query(() => AutoReplyConfig, { description: '自动化配置详情' })
   async autoReplyConfig(@Arg('id') id: string) {
     const config = await prisma.autoReplyConfig.findUnique({ where: { id } });
     return config;
   }
 
+  @Authorized()
   @Mutation(() => Boolean)
   async removeAutoConfig(@Arg('id') id: string) {
     const config = await prisma.autoReplyConfig.findFirst({ where: { id } });
@@ -73,6 +75,7 @@ export class AutoReplyResolver {
     return true;
   }
 
+  @Authorized()
   @Mutation(() => AutoReplyConfig, { description: '创建/更新自动化配置' })
   async saveAutoStartConfig(
     @Arg('input', () => AutoReplyConfigInput) input: AutoReplyConfigInput
