@@ -1,0 +1,40 @@
+version: '3'
+services:
+  web:
+    image: registry.cn-hangzhou.aliyuncs.com/antpro/myself:wx-bot-server
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - default
+    ports:
+      - '10001:10001'
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    restart: always
+    ports:
+      - '3306:3306'
+    volumes:
+      - $PWD/data/mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: localpass
+      MYSQL_DATABASE: antp_wx
+    networks:
+      - default
+
+  redis:
+    image: redis
+    container_name: redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - $PWD/data/redis:/data
+    command: redis-server --port 6379 --requirepass redispw  --appendonly yes
+    networks:
+      - default
+
+networks:
+  default:

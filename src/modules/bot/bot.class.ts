@@ -88,6 +88,7 @@ export default class Bot {
       name,
       puppetOptions: {
         uos: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
       },
       puppet: 'wechaty-puppet-wechat',
     });
