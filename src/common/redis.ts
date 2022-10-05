@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { cloneDeep } from 'lodash';
+import { nanoid } from 'nanoid';
 import { SafeJsonType } from 'safe-json-type';
 import { REDIS_HOST, REDIS_PASSWORD, REDIS_PORT } from '../config';
 
@@ -17,6 +18,7 @@ export function deserialize<T = any>(value: string) {
 
 export const CacheKeys = {
   userSession: (token: string) => `USER:${token}`,
+  genUserSessionToken: (userId: string) => `${userId}:${nanoid()}`,
 };
 
 export const CacheCleaners = {
