@@ -63,7 +63,6 @@ class AutoReplyConfigInput {
 export class AutoReplyResolver {
   constructor(private autoReplyService: AutoReplyService) {}
 
-  @Authorized()
   @Query(() => AutoReplyConfig, { description: '自动化配置详情' })
   async autoReplyConfig(@Arg('id') id: string) {
     const config = await prisma.autoReplyConfig.findUnique({ where: { id } });
@@ -116,7 +115,6 @@ export class AutoReplyResolver {
     return config;
   }
 
-  @Authorized()
   @Query(() => PagedAutoReplyConfig, { description: '自动化配置列表' })
   async autoStartConfigList(
     @Arg('botId') botId: string,
