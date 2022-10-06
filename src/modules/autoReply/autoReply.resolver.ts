@@ -1,12 +1,27 @@
 import { TriggerType, TriggerRate, TriggerPeriod } from '@prisma/client';
 import GraphQLJSON from 'graphql-type-json';
 import { nanoid } from 'nanoid';
-import { Arg, Authorized, Field, FieldResolver, InputType, Mutation, Query, Resolver, Root } from 'type-graphql';
+import {
+  Arg,
+  Authorized,
+  Field,
+  FieldResolver,
+  InputType,
+  Mutation,
+  ObjectType,
+  Query,
+  Resolver,
+  Root,
+} from 'type-graphql';
 import { Service } from 'typedi';
 import { NotfoundError } from '../../common/errors';
 import prisma from '../../common/prisma';
 import { AutoReplyConfig, AutoReplyTriggerLog } from '../../models/autoReply';
+import { PagedResult, PaginationInput } from '../../models/base';
 import { AutoReplyService } from './autoReply.service';
+
+@ObjectType()
+class PagedAutoReplyConfig extends PagedResult(AutoReplyConfig) {}
 
 @InputType()
 class AutoReplyConfigInput {
@@ -99,6 +114,33 @@ export class AutoReplyResolver {
     }
 
     return config;
+  }
+
+  @Authorized()
+  @Query(() => PagedAutoReplyConfig, { description: '自动化配置列表' })
+  async autoStartConfigList(
+    @Arg('botId') botId: string,
+    @Arg('name', { description: '自动化脚本名称', nullable: true }) name?: string,
+    @Arg('triggerType', () => TriggerType, { description: '触发类型', nullable: true }) triggerType?: TriggerType,
+    @Arg('triggerRate', () => TriggerRate, { description: '触发频率', nullable: true }) triggerRate?: TriggerRate,
+    @Arg('triggerPeriod', () => TriggerPeriod, { description: '触发周期', nullable: true })
+    triggerPeriod?: TriggerPeriod,
+    @Arg('pagination', { nullable: true }) pagination?: PaginationInput,
+    @Arg('sort', { description: '排序字段，格式为“字段:asc|desc”', nullable: true }) sort?: string
+  ): Promise<PagedAutoReplyConfig> {
+    const [sortKey, sortType] = sort?.split(':') ?? ['updatedAt', 'desc'];
+    const sorts = [{ [sortKey]: sortType }];
+    const { size = 10, page = 1 } = pagination ?? {};
+    const count = await prisma.autoReplyConfig.count({
+      where: { botId, name, triggerType, triggerRate, triggerPeriod },
+    });
+    const data = await prisma.autoReplyConfig.findMany({
+      where: { botId, name, triggerType, triggerRate, triggerPeriod },
+      take: size,
+      skip: (page - 1) * size,
+      orderBy: sorts,
+    });
+    return { data, count, page, size };
   }
 
   @FieldResolver(() => [AutoReplyTriggerLog], { description: '运行日志' })
