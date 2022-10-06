@@ -18,6 +18,7 @@ export function deserialize<T = any>(value: string) {
 
 export const CacheKeys = {
   userSession: (token: string) => `USER:${token}`,
+  emailVerifyCode: (email: string) => `EMAIL_VERIFY_CODE:${email}`,
   genUserSessionToken: (userId: string) => `${userId}:${nanoid()}`,
 };
 
