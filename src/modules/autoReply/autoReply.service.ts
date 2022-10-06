@@ -34,48 +34,51 @@ export class AutoReplyService {
    */
   createKeywordsReply(config: AutoReplyConfig) {
     const bot = this.validatedBot(config.botId);
-
-    bot.addMessageHandler(config.id, [BotMessageType.Text, BotMessageType.Url], async (msg, messageInstance) => {
-      /**
-       * @example
-       *
-       * triggerExpr = {
-       *  and: [
-       *    { '==': [{ var: 'form.name' }, 'AntPro'] },
-       *    { '==': [{ var: 'content' }, '测试消息'] }]
-       * }
-       *
-       * 匹配模式参考
-       * @see https://jsonlogic.com/
-       */
-      if (!jsonLogic.apply(config.triggerExpr as any, msg)) return;
-      try {
-        const recallMsg = await messageInstance.say(config.content);
+    bot.on('message', {
+      handleId: config.id,
+      typeOrTypes: [BotMessageType.Text, BotMessageType.Url],
+      handle: async (msg, messageInstance) => {
+        /**
+         * @example
+         *
+         * triggerExpr = {
+         *  and: [
+         *    { '==': [{ var: 'form.name' }, 'AntPro'] },
+         *    { '==': [{ var: 'content' }, '测试消息'] }]
+         * }
+         *
+         * 匹配模式参考
+         * @see https://jsonlogic.com/
+         */
+        if (!jsonLogic.apply(config.triggerExpr as any, msg)) return;
         try {
-          const contact = await prisma.botContact.findUnique({ where: { id: msg.botContactId } });
-          // 跳过未保存至数据库的联系人信息
-          if (!contact) return;
-          await prisma.botMessage.createMany({
-            data: [
-              // ! 保存触发消息, 尽量仅作为日志留存
-              { id: nanoid(), content: msg.content, date: msg.date, botContactId: contact.id },
-              // ! 保存发送消息, 尽量仅作为日志留存
-              { id: nanoid(), content: config.content, date: new Date(), botContactId: bot.ctx.botUserinfo.id },
-            ],
-            skipDuplicates: true,
-          });
+          const recallMsg = await messageInstance.say(config.content);
+          try {
+            const contact = await prisma.botContact.findUnique({ where: { id: msg.botContactId } });
+            // 跳过未保存至数据库的联系人信息
+            if (!contact) return;
+            await prisma.botMessage.createMany({
+              data: [
+                // ! 保存触发消息, 尽量仅作为日志留存
+                { id: nanoid(), content: msg.content, date: msg.date, botContactId: contact.id },
+                // ! 保存发送消息, 尽量仅作为日志留存
+                { id: nanoid(), content: config.content, date: new Date(), botContactId: bot.ctx.botUserinfo.id },
+              ],
+              skipDuplicates: true,
+            });
+          } catch (error) {
+            logger.error(`[saving message error]: ${error}`);
+            // ? 发生错误撤回
+            await recallMsg?.recall();
+          }
         } catch (error) {
-          logger.error(`[saving message error]: ${error}`);
-          // ? 发生错误撤回
-          await recallMsg?.recall();
+          logger.error(`[reply message error]: ${error}`);
         }
-      } catch (error) {
-        logger.error(`[reply message error]: ${error}`);
-      }
 
-      if (config.triggerRate === TriggerRate.Once) {
-        this.removeKeywordsReply(config);
-      }
+        if (config.triggerRate === TriggerRate.Once) {
+          this.removeKeywordsReply(config);
+        }
+      },
     });
   }
 
@@ -86,7 +89,7 @@ export class AutoReplyService {
    */
   removeKeywordsReply(config: AutoReplyConfig) {
     const bot = this.validatedBot(config.botId);
-    bot.messageHandlerAdapters.delete(config.id);
+    bot.off('message', config.id);
   }
 
   /**
