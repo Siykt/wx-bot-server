@@ -32,14 +32,22 @@ export class BotResolver {
         },
       });
     }
-    const botInstance = await this.botService.createBotByLocal(bot.id, name);
+    let botInstance = this.botService.getBotByLocal(bot.id);
+    if (!botInstance) {
+      botInstance = await this.botService.createBotByLocal(bot.id, name);
+    }
+    const botId = bot.id;
+    botInstance.on('ready', {
+      handleId: 'updateBotInfo',
+      handle: async () => {
+        console.log('update bot');
+        await prisma.bot.update({
+          where: { id: botId },
+          data: { name },
+        });
+      },
+    });
     bot.scanQrcode = await botInstance.asyncGetScanQrcode();
-    botInstance.onReady = () => {
-      prisma.bot.update({
-        where: { id: bot!.id },
-        data: { ...bot, name: botInstance.ctx.botUserinfo.name },
-      });
-    };
     return bot;
   }
 
@@ -50,8 +58,8 @@ export class BotResolver {
 
   @Authorized()
   @Query(() => Bot, { description: '获取自己的机器人(单机器人模型)', nullable: true })
-  myselfBot(@CurrentUser() user: User) {
-    const bot = prisma.bot.findFirst({ where: { userId: user.id } });
+  async myselfBot(@CurrentUser() user: User) {
+    const bot = await prisma.bot.findFirst({ where: { userId: user.id } });
     if (!bot) throw new NotFoundError('暂无机器人, 请先尝试创建!');
     return bot;
   }
@@ -59,7 +67,8 @@ export class BotResolver {
   @FieldResolver(() => Number, { description: '获取机器人状态' })
   botStatus(@Root() root: Bot) {
     const bot = this.botService.getBotByLocal(root.id);
-    if (!bot) throw new NotFoundError('无法获取该机器人!');
+    // 未初始化
+    if (!bot) return 0;
     return bot.botStatus;
   }
 

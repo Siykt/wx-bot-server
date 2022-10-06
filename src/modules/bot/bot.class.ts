@@ -77,8 +77,9 @@ export default class Bot {
   bot: WechatyInterface;
   botStatus: BotStatus = 0;
   ctx: BotContext = {} as BotContext;
-  messageHandlerAdapters: MessageHandlerAdapters = new Map();
-  onReady: () => unknown = () => {};
+  private messageHandlerAdapters: MessageHandlerAdapters = new Map();
+  private redyedCallbackHandles: Map<string, (bot: Bot) => unknown> = new Map();
+
   /**
    * @param name 机器人ID, 会作为缓存保留
    * @param manual 手动启动机器人
@@ -182,10 +183,13 @@ export default class Bot {
     logger.info(`bot-${this.bot.id} 已有用户加入: ${user.name()}`);
   }
   private async handleReady() {
+    for (const handle of this.redyedCallbackHandles.values()) {
+      await handle(this);
+    }
+    this.redyedCallbackHandles.clear();
     this.ctx.fileHelper = await this.bot.Contact.find({ name: '文件传输助手' });
-    logger.info(`bot-${this.bot.id} 已经准备就绪!`);
     this.botStatus = BotStatus.Ready;
-    this.onReady();
+    logger.info(`bot-${this.bot.id} 已经准备就绪!`);
   }
   private async handleMessage(message: MessageInterface) {
     // ? 跳过自己发送的消息
@@ -239,12 +243,47 @@ export default class Bot {
     return Promise.all(map(roomList, curry(Bot.getRoomInfo)(this.ctx.botUser)));
   }
 
-  addMessageHandler(
-    handleId: string,
-    typeOrTypes: PuppetTypes.Message[] | PuppetTypes.Message,
-    handle: BotMessageHandlerAdapter
+  on(
+    event: 'ready',
+    options: {
+      handleId: string;
+      handle: (bot: Bot) => unknown;
+    }
+  ): void;
+  on(
+    event: 'message',
+    options: {
+      handleId: string;
+      handle: BotMessageHandlerAdapter;
+      typeOrTypes: PuppetTypes.Message[] | PuppetTypes.Message;
+    }
+  ): void;
+  on(
+    event: 'ready' | 'message',
+    options: {
+      handleId: string;
+      handle: () => unknown | BotMessageHandlerAdapter;
+      typeOrTypes: PuppetTypes.Message[] | PuppetTypes.Message;
+    }
   ) {
-    // TODO 可以额外封装一下, 比如将保存消息模块放在这里
-    return this.messageHandlerAdapters.set(handleId, [typeOrTypes, handle]);
+    switch (event) {
+      case 'message':
+        this.messageHandlerAdapters.set(options.handleId, [options.typeOrTypes, options.handle]);
+        return;
+      case 'ready':
+        this.redyedCallbackHandles.set(options.handleId, options.handle);
+        return;
+    }
+  }
+
+  off(event: 'ready' | 'message', handleId: string) {
+    switch (event) {
+      case 'message':
+        this.messageHandlerAdapters.delete(handleId);
+        return;
+      case 'ready':
+        this.redyedCallbackHandles.delete(handleId);
+        return;
+    }
   }
 }
