@@ -1,6 +1,9 @@
+import { User } from '@prisma/client';
+import { NotFoundError } from '@prisma/client/runtime';
 import { nanoid } from 'nanoid';
 import { Arg, Authorized, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
 import { Service } from 'typedi';
+import { CurrentUser } from '../../common/decorators/currentUser';
 import prisma from '../../common/prisma';
 import { Bot, BotContact, BotRoom } from '../../models/bot';
 import { BotService } from './bot.service';
@@ -12,16 +15,20 @@ export class BotResolver {
 
   @Authorized()
   @Mutation(() => Bot, { description: '启动/创建机器人' })
-  async startBot(@Arg('id', { nullable: true }) id?: string, @Arg('name', { nullable: true }) name?: string) {
+  async startBot(
+    @CurrentUser() user: User,
+    @Arg('id', { nullable: true }) id?: string,
+    @Arg('name', { nullable: true }) name?: string
+  ) {
     let bot: Bot | null = null;
     if (id) {
       bot = await this.bot(id);
-    }
-    if (!bot) {
+      if (!bot) throw new NotFoundError('无法获取该机器人!');
+    } else {
       bot = await prisma.bot.create({
         data: {
           id: nanoid(),
-          userId: (await prisma.user.findFirst({ where: { username: 'admin' } }))!.id,
+          userId: user.id,
         },
       });
     }
@@ -36,21 +43,26 @@ export class BotResolver {
     return bot;
   }
 
-  @Authorized()
   @Query(() => Bot, { description: '获取机器人', nullable: true })
   bot(@Arg('id') id: string) {
     return prisma.bot.findUnique({ where: { id } });
   }
 
   @Authorized()
+  @Query(() => Bot, { description: '获取自己的机器人(单机器人模型)', nullable: true })
+  myselfBot(@CurrentUser() user: User) {
+    const bot = prisma.bot.findFirst({ where: { userId: user.id } });
+    if (!bot) throw new NotFoundError('暂无机器人, 请先尝试创建!');
+    return bot;
+  }
+
   @FieldResolver(() => Number, { description: '获取机器人状态' })
   botStatus(@Root() root: Bot) {
     const bot = this.botService.getBotByLocal(root.id);
-    if (!bot) return 0;
+    if (!bot) throw new NotFoundError('无法获取该机器人!');
     return bot.botStatus;
   }
 
-  @Authorized()
   @FieldResolver(() => [BotContact], { description: '机器人的联系人信息' })
   async botContacts(
     @Root() root: Bot,
@@ -70,7 +82,6 @@ export class BotResolver {
     return this.botService.getBotContacts(root.id);
   }
 
-  @Authorized()
   @FieldResolver(() => [BotRoom], { description: '机器人的所有群信息' })
   async botRooms(@Root() root: Bot, @Arg('refresh', { nullable: true }) refresh: boolean = false): Promise<BotRoom[]> {
     const res = await prisma.botRoom.findMany({
