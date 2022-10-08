@@ -1,7 +1,7 @@
-import { AutoReplyConfig, TriggerPeriod, TriggerRate } from '@prisma/client';
+import { AutoReplyConfig, TriggerPeriod, TriggerRate, TriggerType } from '@prisma/client';
 import jsonLogic from 'json-logic-js';
 import { nanoid } from 'nanoid';
-import Schedule from 'node-schedule';
+import Schedule, { scheduleJob } from 'node-schedule';
 import { Service } from 'typedi';
 import { NotfoundError } from '../../common/errors';
 import logger from '../../common/logger';
@@ -177,5 +177,19 @@ export class AutoReplyService {
   removeCronJob(config: AutoReplyConfig) {
     const jobName = this.createJobName(config);
     Schedule.cancelJob(jobName);
+  }
+
+  async createJob(config: AutoReplyConfig) {
+    // 定时任务
+    if (config.triggerType === TriggerType.Auto) {
+      this.removeCronJob(config);
+      await this.createCronJob(config);
+    }
+    // 自动回复
+    if (config.triggerType === TriggerType.Event) {
+      this.removeKeywordsReply(config);
+      this.createKeywordsReply(config);
+    }
+    return true;
   }
 }
