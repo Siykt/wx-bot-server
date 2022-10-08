@@ -19,7 +19,7 @@ services:
     volumes:
       - $PWD/data/mysql:/var/lib/mysql
     environment:
-      MYSQL_ROOT_PASSWORD: localpass
+      MYSQL_ROOT_PASSWORD: 36oeCsqEGsQkFSz
       MYSQL_DATABASE: antp_wx
     networks:
       - default
@@ -32,7 +32,7 @@ services:
       - '6379:6379'
     volumes:
       - $PWD/data/redis:/data
-    command: redis-server --port 6379 --requirepass redispw  --appendonly yes
+    command: redis-server --port 6379 --requirepass TWWiSiJvZ7cYhqd --appendonly yes
     networks:
       - default
 
