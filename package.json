@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "nodemon --config nodemon.json src/index.ts",
     "start": "node dist/index.js",
-    "build": "npx prisma generate && npx tsc",
+    "build": "npx prisma generate && npx tsc && cpy src/mail/templates/*.hbs dist/mail/templates/",
     "lint": "eslint src --fix --ext .ts"
   },
   "dependencies": {
@@ -63,6 +63,7 @@
     "@types/qrcode": "^1.5.0",
     "@typescript-eslint/eslint-plugin": "^5.34.0",
     "@typescript-eslint/parser": "^5.34.0",
+    "cpy-cli": "^4.2.0",
     "eslint": "^8.22.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
