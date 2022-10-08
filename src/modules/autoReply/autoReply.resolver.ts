@@ -101,17 +101,7 @@ export class AutoReplyResolver {
       create: { ...input, id: nanoid() },
       update: { ...input },
     });
-
-    // 定时任务
-    if (config.triggerType === TriggerType.Auto) {
-      await this.autoReplyService.createCronJob(config);
-    }
-
-    // 自动回复
-    if (config.triggerType === TriggerType.Event) {
-      this.autoReplyService.createKeywordsReply(config);
-    }
-
+    await this.autoReplyService.createJob(config);
     return config;
   }
 

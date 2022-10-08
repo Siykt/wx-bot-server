@@ -1,4 +1,4 @@
-import { User } from '@prisma/client';
+import { TriggerType, User } from '@prisma/client';
 import { NotFoundError } from '@prisma/client/runtime';
 import { nanoid } from 'nanoid';
 import { Arg, Authorized, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
@@ -6,12 +6,13 @@ import { Service } from 'typedi';
 import { CurrentUser } from '../../common/decorators/currentUser';
 import prisma from '../../common/prisma';
 import { Bot, BotContact, BotRoom } from '../../models/bot';
+import { AutoReplyService } from '../autoReply/autoReply.service';
 import { BotService } from './bot.service';
 
 @Service()
 @Resolver(Bot)
 export class BotResolver {
-  constructor(private botService: BotService) {}
+  constructor(private botService: BotService, private autoReplyService: AutoReplyService) {}
 
   @Authorized()
   @Mutation(() => Bot, { description: '启动/创建机器人' })
@@ -47,6 +48,17 @@ export class BotResolver {
           where: { id: botId },
           data: { name },
         });
+      },
+    });
+    botInstance.on('ready', {
+      handleId: 'setupAutoReplyJobs',
+      handle: async () => {
+        const jobs = await prisma.autoReplyConfig.findMany({
+          where: { botId },
+        });
+        for (const config of jobs) {
+          await this.autoReplyService.createJob(config);
+        }
       },
     });
     bot.scanQrcode = await botInstance.asyncGetScanQrcode();
