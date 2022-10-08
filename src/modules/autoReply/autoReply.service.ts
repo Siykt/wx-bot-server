@@ -1,7 +1,7 @@
 import { AutoReplyConfig, TriggerPeriod, TriggerRate, TriggerType } from '@prisma/client';
 import jsonLogic from 'json-logic-js';
 import { nanoid } from 'nanoid';
-import Schedule, { scheduleJob } from 'node-schedule';
+import Schedule from 'node-schedule';
 import { Service } from 'typedi';
 import { NotfoundError } from '../../common/errors';
 import logger from '../../common/logger';

@@ -1,4 +1,4 @@
-import { TriggerType, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import { NotFoundError } from '@prisma/client/runtime';
 import { nanoid } from 'nanoid';
 import { Arg, Authorized, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
