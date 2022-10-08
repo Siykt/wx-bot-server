@@ -36,7 +36,7 @@ async function checkInitAdminAccount() {
         id: nanoid(),
         nickname: 'Admin',
         username: 'admin',
-        password: '21232f297a57a5a743894a0e4a801fc3', // admin
+        password: 'de3bc5b5398ab151e47135a773d11110', // siykt.com
         userRoles: {
           create: {
             type: UserRoleType.SystemAdmin,
