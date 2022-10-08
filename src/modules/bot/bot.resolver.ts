@@ -25,12 +25,15 @@ export class BotResolver {
       bot = await this.bot(id);
       if (!bot) throw new NotFoundError('无法获取该机器人!');
     } else {
-      bot = await prisma.bot.create({
-        data: {
-          id: nanoid(),
-          userId: user.id,
-        },
-      });
+      bot = await prisma.bot.findFirst({ where: { userId: user.id } });
+      if (!bot) {
+        bot = await prisma.bot.create({
+          data: {
+            id: nanoid(),
+            userId: user.id,
+          },
+        });
+      }
     }
     let botInstance = this.botService.getBotByLocal(bot.id);
     if (!botInstance) {
@@ -40,7 +43,6 @@ export class BotResolver {
     botInstance.on('ready', {
       handleId: 'updateBotInfo',
       handle: async () => {
-        console.log('update bot');
         await prisma.bot.update({
           where: { id: botId },
           data: { name },
