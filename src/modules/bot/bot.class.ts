@@ -172,12 +172,12 @@ export default class Bot {
     logger.info(`bot-${this.bot.id} 已有用户加入: ${user.name()}`);
   }
   private async handleReady() {
+    this.botStatus = BotStatus.Ready;
     for (const handle of this.redyedCallbackHandles.values()) {
       await handle(this);
     }
     this.redyedCallbackHandles.clear();
     this.ctx.fileHelper = await this.bot.Contact.find({ name: '文件传输助手' });
-    this.botStatus = BotStatus.Ready;
     logger.info(`bot-${this.bot.id} 已经准备就绪!`);
   }
   private async handleMessage(message: MessageInterface) {
@@ -189,7 +189,6 @@ export default class Bot {
     console.log('message ->', await Bot.formatMessage(message));
     for (let [id, [types, handler]] of this.messageHandlerAdapters) {
       types = Array.isArray(types) ? types : [types];
-      console.log(types, type, !types.includes(type));
       if (!types.includes(type)) continue;
       try {
         await handler.call(this, await Bot.formatMessage(message), message, type);
