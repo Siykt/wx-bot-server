@@ -1,8 +1,10 @@
-import { AutoReplyConfig, TriggerPeriod, TriggerRate, TriggerType } from '@prisma/client';
+import { AutoReplyConfig, TriggeredObjectType, TriggerPeriod, TriggerRate, TriggerType } from '@prisma/client';
 import jsonLogic from 'json-logic-js';
 import { nanoid } from 'nanoid';
 import Schedule from 'node-schedule';
 import { Service } from 'typedi';
+import { Room, Contact } from 'wechaty';
+import { MessageInterface } from 'wechaty/impls';
 import { NotfoundError } from '../../common/errors';
 import logger from '../../common/logger';
 import prisma from '../../common/prisma';
@@ -50,9 +52,16 @@ export class AutoReplyService {
          * 匹配模式参考
          * @see https://jsonlogic.com/
          */
-        if (!jsonLogic.apply(config.triggerExpr as any, msg)) return;
         try {
-          const recallMsg = await messageInstance.say(config.content);
+          if (!jsonLogic.apply(config.triggerExpr as any, msg)) return;
+          let replyTargetInstance: Room | Contact | MessageInterface | undefined = messageInstance;
+          if (config.triggeredObjectType === TriggeredObjectType.Contact) {
+            replyTargetInstance = await bot.bot.Contact.find(config.triggeredObject as any);
+          } else if (config.triggeredObjectType === TriggeredObjectType.Room) {
+            replyTargetInstance = await bot.bot.Room.find(config.triggeredObject as any);
+          }
+          if (!replyTargetInstance) throw new NotfoundError('无法获取执行对象!');
+          const recallMsg = await replyTargetInstance.say(config.content);
           try {
             const contact = await prisma.botContact.findUnique({ where: { id: msg.botContactId } });
             // 跳过未保存至数据库的联系人信息

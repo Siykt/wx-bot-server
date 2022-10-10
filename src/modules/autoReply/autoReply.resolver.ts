@@ -1,4 +1,4 @@
-import { TriggerType, TriggerRate, TriggerPeriod } from '@prisma/client';
+import { TriggerType, TriggerRate, TriggerPeriod, TriggeredObjectType } from '@prisma/client';
 import GraphQLJSON from 'graphql-type-json';
 import { nanoid } from 'nanoid';
 import {
@@ -40,11 +40,11 @@ class AutoReplyConfigInput {
   @Field({ description: '优先级' })
   priority!: number;
 
-  @Field(() => TriggerType, { description: '触发类型' })
-  triggerType!: TriggerType;
+  @Field(() => TriggerType, { nullable: true, description: '触发类型' })
+  triggerType?: TriggerType | null;
 
-  @Field(() => TriggerRate, { description: '触发频率' })
-  triggerRate!: TriggerRate;
+  @Field(() => TriggerRate, { nullable: true, description: '触发频率' })
+  triggerRate?: TriggerRate | null;
 
   @Field(() => TriggerPeriod, { nullable: true, description: '触发周期' })
   triggerPeriod?: TriggerPeriod | null;
@@ -53,6 +53,15 @@ class AutoReplyConfigInput {
     description: '表达式, Auto为{name: string | RegExp} / {alias: string | RegExp}; Event为 "JSONLogic"',
   })
   triggerExpr!: any;
+
+  @Field(() => GraphQLJSON, {
+    description: '指定的触发对象 {name: string | RegExp} / {alias: string | RegExp}',
+    nullable: true,
+  })
+  triggeredObject?: any;
+
+  @Field(() => TriggeredObjectType, { description: '触发对象类型', nullable: true })
+  triggeredObjectType?: TriggeredObjectType | null;
 
   @Field()
   botId!: string;
