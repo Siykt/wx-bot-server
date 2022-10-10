@@ -11,6 +11,16 @@ import prisma from '../../common/prisma';
 import { BotMessageType } from '../bot/bot.class';
 import { BotService } from '../bot/bot.service';
 
+// 正则匹配
+jsonLogic.add_operation('regexMatches', function (subject, pattern) {
+  try {
+    return new RegExp(pattern).test(subject);
+  } catch (error) {
+    logger.warn(`[jsonLogicRegError] ${error}`);
+    return false;
+  }
+});
+
 @Service()
 export class AutoReplyService {
   constructor(private botService: BotService) {}
