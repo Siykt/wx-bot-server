@@ -10,6 +10,7 @@ import logger from '../../common/logger';
 import prisma from '../../common/prisma';
 import { BotMessageType } from '../bot/bot.class';
 import { BotService } from '../bot/bot.service';
+import dayjs from 'dayjs';
 
 // 正则匹配
 jsonLogic.add_operation('regexMatches', function (subject, pattern) {
@@ -71,7 +72,17 @@ export class AutoReplyService {
             replyTargetInstance = await bot.bot.Room.find(config.triggeredObject as any);
           }
           if (!replyTargetInstance) throw new NotfoundError('无法获取执行对象!');
-          const recallMsg = await replyTargetInstance.say(config.content);
+          const matches: Record<string, string> = {
+            fromName: msg.form?.name ?? '未知来源',
+            username: bot.ctx.botUserinfo.name,
+            message: msg.content,
+            timer: dayjs(messageInstance.date()).format('YYYY-MM-DD: HH:mm:ss'),
+          };
+          let replyContent = config.content;
+          for (const regex in matches) {
+            replyContent = replyContent.replace(new RegExp(`#${regex}`, 'g'), matches[regex]);
+          }
+          const recallMsg = await replyTargetInstance.say(replyContent);
           try {
             const contact = await prisma.botContact.findUnique({ where: { id: msg.botContactId } });
             // 跳过未保存至数据库的联系人信息
