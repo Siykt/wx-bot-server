@@ -1,5 +1,5 @@
 import { ObjectType, Field, registerEnumType } from 'type-graphql';
-import { TriggerPeriod, TriggerRate, TriggerType } from 'prisma/prisma-client';
+import { TriggerPeriod, TriggerRate, TriggerType, TriggeredObjectType } from 'prisma/prisma-client';
 import GraphQLJSON from 'graphql-type-json';
 
 registerEnumType(TriggerType, {
@@ -32,6 +32,16 @@ registerEnumType(TriggerPeriod, {
   },
 });
 
+registerEnumType(TriggeredObjectType, {
+  name: 'TriggeredObjectType',
+  description: '触发对象类型',
+  valuesConfig: {
+    Room: { description: '指定群组' },
+    From: { description: '消息来源' },
+    Contact: { description: '指定联系人' },
+  },
+});
+
 @ObjectType({ description: '自动化配置模型' })
 export class AutoReplyConfig {
   @Field({ description: 'ID' })
@@ -49,17 +59,23 @@ export class AutoReplyConfig {
   @Field({ description: '优先级' })
   priority!: number;
 
-  @Field(() => TriggerType, { description: '触发类型' })
-  triggerType!: TriggerType;
+  @Field(() => TriggerType, { description: '触发类型', nullable: true, defaultValue: TriggerType.Event })
+  triggerType?: TriggerType | null;
 
-  @Field(() => TriggerRate, { description: '触发频率' })
-  triggerRate!: TriggerRate;
+  @Field(() => TriggerRate, { description: '触发频率', nullable: true, defaultValue: TriggerRate.Always })
+  triggerRate?: TriggerRate | null;
 
   @Field(() => GraphQLJSON, { description: '表达式' })
   triggerExpr!: any;
 
   @Field(() => TriggerPeriod, { description: '触发周期', nullable: true })
   triggerPeriod?: TriggerPeriod | null;
+
+  @Field(() => GraphQLJSON, { description: '指定的触发对象', nullable: true })
+  triggeredObject?: any;
+
+  @Field(() => TriggeredObjectType, { description: '触发对象类型', nullable: true })
+  triggeredObjectType?: TriggeredObjectType | null;
 
   @Field({ description: '创建时间' })
   createdAt!: Date;

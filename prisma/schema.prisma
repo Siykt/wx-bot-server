@@ -166,17 +166,25 @@ enum TriggerPeriod {
   Month
 }
 
+enum TriggeredObjectType {
+  Room
+  From
+  Contact
+}
+
 model AutoReplyConfig {
-  id            String         @id @db.VarChar(40)
-  name          String         @db.VarChar(40)
-  content       String         @db.Text
-  description   String?        @db.VarChar(255)
-  priority      Int            @default(0)
-  triggerType   TriggerType    @default(Auto)
-  triggerRate   TriggerRate    @default(Always)
-  triggerPeriod TriggerPeriod?
-  triggerExpr   Json
-  triggerTimes  Int            @default(0)
+  id                  String               @id @db.VarChar(40)
+  name                String               @db.VarChar(40)
+  content             String               @db.Text
+  description         String?              @db.VarChar(255)
+  priority            Int                  @default(0)
+  triggerType         TriggerType?         @default(Event)
+  triggerRate         TriggerRate?         @default(Always)
+  triggerPeriod       TriggerPeriod?
+  triggerExpr         Json
+  triggerTimes        Int                  @default(0)
+  triggeredObject     Json?
+  triggeredObjectType TriggeredObjectType? @default(From)
 
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
