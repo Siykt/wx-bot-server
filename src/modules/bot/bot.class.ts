@@ -15,18 +15,7 @@ import {
 import { wait } from '../../common/async';
 import logger from '../../common/logger';
 import { APP_HOST, STORAGE_PATH } from '../../config';
-import { BotContact, BotMessage, BotRoom } from '../../models/bot';
-import { OmitModel } from '../../types/utils.t';
-
-export type BotContactInfo = OmitModel<BotContact, 'botId'>;
-
-export interface BotRoomInfo extends OmitModel<BotRoom, 'botId'> {
-  member: BotContactInfo[];
-}
-
-export interface BotMessageInfo extends OmitModel<BotMessage> {
-  form?: BotContactInfo;
-}
+import { BotContactInfo, BotMessageInfo, BotRoomInfo } from './types';
 
 export interface BotContext {
   /** 扫码QRCord */
