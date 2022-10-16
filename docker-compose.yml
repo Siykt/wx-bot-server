@@ -9,6 +9,8 @@ services:
       - default
     ports:
       - '10001:10001'
+    volumes:
+      - /etc/timezone:/etc/timezone:ro /etc/localtime:/etc/localtime:ro
 
   mysql:
     image: mysql:5.7
